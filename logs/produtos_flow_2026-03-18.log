@@ -1,0 +1,56 @@
+2026-03-18 14:33:52.328 | ERROR    | run:180 — FALHA NO FLUXO: PyAutoGUIException: PyAutoGUI was unable to import pyscreeze. (This is likely because you're running a version of Python that Pillow (which pyscreeze depends on) doesn't support currently.) Please install this module to enable the function you tried to call.
+2026-03-18 14:33:52.341 | ERROR    | run:181 — Traceback (most recent call last):
+  File "C:\QA\teste automatizados\teste pyautogui\flows\Produtos\Produtos_flow.py", line 166, in run
+    main = wait_window(app, r".*FórmulaCerta.*", timeout=5, label="Principal")
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\QA\teste automatizados\teste pyautogui\core\actions.py", line 90, in wait_window
+    screenshot_on_failure(f"janela_nao_encontrada_{label.replace(' ', '_')}")
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\QA\teste automatizados\teste pyautogui\core\actions.py", line 17, in screenshot_on_failure
+    pyautogui.screenshot(str(path))
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "c:\QA\teste automatizados\teste pyautogui\.venv\Lib\site-packages\pyautogui\__init__.py", line 228, in _couldNotImportPyScreeze
+    raise PyAutoGUIException(
+        "PyAutoGUI was unable to import pyscreeze. (This is likely because you're running a version of Python that Pillow (which pyscreeze depends on) doesn't support currently.) Please install this module to enable the function you tried to call."
+    )
+pyautogui.PyAutoGUIException: PyAutoGUI was unable to import pyscreeze. (This is likely because you're running a version of Python that Pillow (which pyscreeze depends on) doesn't support currently.) Please install this module to enable the function you tried to call.
+
+2026-03-18 14:37:37.017 | ERROR    | run:180 — FALHA NO FLUXO: PyAutoGUIException: PyAutoGUI was unable to import pyscreeze. (This is likely because you're running a version of Python that Pillow (which pyscreeze depends on) doesn't support currently.) Please install this module to enable the function you tried to call.
+2026-03-18 14:37:37.026 | ERROR    | run:181 — Traceback (most recent call last):
+  File "C:\QA\teste automatizados\teste pyautogui\flows\Produtos\Produtos_flow.py", line 166, in run
+    main = wait_window(app, r".*FórmulaCerta.*", timeout=5, label="Principal")
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\QA\teste automatizados\teste pyautogui\core\actions.py", line 90, in wait_window
+    screenshot_on_failure(f"janela_nao_encontrada_{label.replace(' ', '_')}")
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\QA\teste automatizados\teste pyautogui\core\actions.py", line 17, in screenshot_on_failure
+    pyautogui.screenshot(str(path))
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "c:\QA\teste automatizados\teste pyautogui\.venv\Lib\site-packages\pyautogui\__init__.py", line 228, in _couldNotImportPyScreeze
+    raise PyAutoGUIException(
+        "PyAutoGUI was unable to import pyscreeze. (This is likely because you're running a version of Python that Pillow (which pyscreeze depends on) doesn't support currently.) Please install this module to enable the function you tried to call."
+    )
+pyautogui.PyAutoGUIException: PyAutoGUI was unable to import pyscreeze. (This is likely because you're running a version of Python that Pillow (which pyscreeze depends on) doesn't support currently.) Please install this module to enable the function you tried to call.
+
+2026-03-18 14:41:30.762 | ERROR    | run:180 — FALHA NO FLUXO: ModuleNotFoundError: No module named 'psutil'
+2026-03-18 14:41:30.768 | ERROR    | run:181 — Traceback (most recent call last):
+  File "C:\QA\teste automatizados\teste pyautogui\flows\Produtos\Produtos_flow.py", line 173, in run
+    etapa_preencher_produtos()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\QA\teste automatizados\teste pyautogui\flows\Produtos\Produtos_flow.py", line 73, in etapa_preencher_produtos
+    app_produtos = wait_app_by_exe("FCProdutos.exe", timeout=20)
+  File "C:\QA\teste automatizados\teste pyautogui\core\actions.py", line 98, in wait_app_by_exe
+    import psutil
+ModuleNotFoundError: No module named 'psutil'
+
+2026-03-18 14:44:23.915 | ERROR    | run:180 — FALHA NO FLUXO: ModuleNotFoundError: No module named 'psutil'
+2026-03-18 14:44:23.924 | ERROR    | run:181 — Traceback (most recent call last):
+  File "C:\QA\teste automatizados\teste pyautogui\flows\Produtos\Produtos_flow.py", line 173, in run
+    etapa_preencher_produtos()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\QA\teste automatizados\teste pyautogui\flows\Produtos\Produtos_flow.py", line 73, in etapa_preencher_produtos
+    app_produtos = wait_app_by_exe("FCProdutos.exe", timeout=20)
+  File "C:\QA\teste automatizados\teste pyautogui\core\actions.py", line 98, in wait_app_by_exe
+    import psutil
+ModuleNotFoundError: No module named 'psutil'
+

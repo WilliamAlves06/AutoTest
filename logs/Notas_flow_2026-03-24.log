@@ -1,0 +1,19 @@
+2026-03-24 10:51:51.829 | ERROR    | run:217 — FALHA NO FLUXO: TimeoutError: Janela 'Principal' não apareceu em 20s
+2026-03-24 10:51:51.866 | ERROR    | run:218 — Traceback (most recent call last):
+  File "C:\QA\teste automatizados\teste pyautogui\flows\Notas\CT-192043.py", line 204, in run
+    main = wait_window(app, r".*FórmulaCerta.*", timeout=5, label="Principal")
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\QA\teste automatizados\teste pyautogui\core\actions.py", line 91, in wait_window
+    raise TimeoutError(f"Janela '{label}' não apareceu em {timeout}s")
+TimeoutError: Janela 'Principal' não apareceu em 5s
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\QA\teste automatizados\teste pyautogui\flows\Notas\CT-192043.py", line 208, in run
+    main = wait_window(app, r".*FórmulaCerta.*", timeout=20, label="Principal")
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\QA\teste automatizados\teste pyautogui\core\actions.py", line 91, in wait_window
+    raise TimeoutError(f"Janela '{label}' não apareceu em {timeout}s")
+TimeoutError: Janela 'Principal' não apareceu em 20s
+

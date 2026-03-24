@@ -45,7 +45,7 @@ def etapa_conectar_ou_iniciar() -> Application:
 def etapa_login(app: Application):
     """Aguarda tela de login, preenche usuário e senha."""
     logger.info("Aguardando tela de login...")
-    login = wait_window_exact(app, WIN_LOGIN, timeout=25, label="Login")
+    login = wait_window_exact(app, WIN_LOGIN, timeout=5, label="Login")
     login.set_focus()
  
     # Pywinauto navega por Tab/Enter na maioria dos formulários Delphi/VCL
@@ -64,17 +64,17 @@ def etapa_abrir_menu_produtos(main) -> None:
     main.type_keys("%a")   # ALT + A
  
     # Aguarda menu aparecer antes de navegar
-    time.sleep(0.4)
+    time.sleep(0.2)
     main.type_keys("{DOWN}{DOWN}{ENTER}")
     logger.info("Menu Produtos acionado.")
 
 def etapa_preencher_produtos() -> None:
     logger.info("Aguardando processo FCProdutos.exe...")
-    app_produtos = wait_app_by_exe("FCProdutos.exe", timeout=20)
+    app_produtos = wait_app_by_exe("FCProdutos.exe", timeout=5)
 
-    time.sleep(0.3)
+    time.sleep(0.1)
     produtos = app_produtos.top_window()
-    logger.info(f"Janela capturada: '{produtos.window_text()}'")
+    logger.info(f"Janela    capturada: '{produtos.window_text()}'")
     produtos.set_focus()
 
     campo_codigo = wait_element(
@@ -91,15 +91,15 @@ def etapa_preencher_produtos() -> None:
     logger.debug("Navegando com CTRL+TAB (5x)...")
     for i in range(5):
         produtos.type_keys("^{TAB}")
-        time.sleep(0.15)
+        time.sleep(0.1)
 
     # ── F3 — abre dialog "Produto a alterar" ─────────────
     produtos.type_keys("{F3}")
     logger.info("F3 enviado — aguardando dialog...")
-    time.sleep(0.7)
+    time.sleep(0.2)
 
     # Pega a janela do dialog pelo título exato
-    dialog = wait_window_exact(app_produtos, "Produto a alterar", timeout=10, label="Dialog Alterar")
+    dialog = wait_window_exact(app_produtos, "Produto a alterar", timeout=3, label="Dialog Alterar")
     dialog.set_focus()
 
     # Busca o campo Alterar
@@ -111,13 +111,13 @@ def etapa_preencher_produtos() -> None:
     )
     safe_click(btn_alterar, label="Botão Alterar #1")
     logger.info("Clicou em sim para Alterar!")
-    time.sleep(0.5)
+   
 
     # Verifica foco
     if not produtos.set_focus():
         logger.warning("Janela perdeu foco — tentando recuperar...")
         produtos.set_focus()
-        time.sleep(0.3)
+        time.sleep(0.2)
         if not produtos.set_focus():
             raise RuntimeError("Janela Produtos perdeu o foco e não foi possível recuperar.")
 
@@ -125,19 +125,18 @@ def etapa_preencher_produtos() -> None:
     botao_5 = wait_element(produtos, class_name="TFagronButton", found_index=4, label="Botão Alterar #2")
     safe_click(botao_5, label="Botão Alterar #2")
     logger.info("Cliclou em Alterar novamente...")
-    time.sleep(0.2)
+
 
     # ── Campo CBS/IBS ────────────────────────────────
     campo_cbs = wait_element(produtos, class_name="TwwDBComboBox", found_index=2, label="Campo CBS/IBS")
     safe_type(campo_cbs, "011005", label="Campo CBS/IBS")
     campo_cbs.type_keys("{ENTER}")
     logger.info("Selecionou em Campo CBS/IBS novamente...")
-    time.sleep(0.2)
 
     # ── Botão índice 5 ────────────────────────────────────
     botao6 = wait_element(produtos, class_name="TFagronButton", found_index=5, label="Botão Salvar")
     safe_click(botao6, label="Botão Salvar")
-    time.sleep(0.4)
+    time.sleep(0.2)
 
     # ── Fechar ────────────────────────────────────────────
     logger.info("Fechando janela Produtos...")

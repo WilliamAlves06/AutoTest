@@ -1,0 +1,17 @@
+2026-03-18 14:32:33.836 | ERROR    | run:143 — FALHA NO FLUXO: PyAutoGUIException: PyAutoGUI was unable to import pyscreeze. (This is likely because you're running a version of Python that Pillow (which pyscreeze depends on) doesn't support currently.) Please install this module to enable the function you tried to call.
+2026-03-18 14:32:33.848 | ERROR    | run:144 — Traceback (most recent call last):
+  File "C:\QA\teste automatizados\teste pyautogui\flows\Notas\CT-192043.py", line 130, in run
+    main = wait_window(app, r".*FórmulaCerta.*", timeout=5, label="Principal")
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\QA\teste automatizados\teste pyautogui\core\actions.py", line 90, in wait_window
+    screenshot_on_failure(f"janela_nao_encontrada_{label.replace(' ', '_')}")
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\QA\teste automatizados\teste pyautogui\core\actions.py", line 17, in screenshot_on_failure
+    pyautogui.screenshot(str(path))
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "c:\QA\teste automatizados\teste pyautogui\.venv\Lib\site-packages\pyautogui\__init__.py", line 228, in _couldNotImportPyScreeze
+    raise PyAutoGUIException(
+        "PyAutoGUI was unable to import pyscreeze. (This is likely because you're running a version of Python that Pillow (which pyscreeze depends on) doesn't support currently.) Please install this module to enable the function you tried to call."
+    )
+pyautogui.PyAutoGUIException: PyAutoGUI was unable to import pyscreeze. (This is likely because you're running a version of Python that Pillow (which pyscreeze depends on) doesn't support currently.) Please install this module to enable the function you tried to call.
+
