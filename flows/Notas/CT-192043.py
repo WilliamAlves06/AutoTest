@@ -26,7 +26,7 @@ from core.reporter import imprimir_inicio, imprimir_etapa, imprimir_resultado
 EXE_PATH  = r"C:\Fcerta\fcerta.exe"
 WIN_LOGIN = "FórmulaCerta Autenticação de Usuário"
 USUARIO   = "FAGRONTECH"
-SENHA     = "123"
+SENHA     = "321"
 
 # ─────────────────────────────────────────
 # CONFIGURAÇÃO — NOTA
