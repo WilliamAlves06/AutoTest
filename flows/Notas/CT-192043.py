@@ -40,15 +40,12 @@ NRLOT_ESPERADO = "123"
 # ─────────────────────────────────────────
 DB_CONFIG = {
     "host":     "localhost",
-    "database": r"C:\bancoDeDados\NFCE-205607\alterdb.ib",
+    "database": r"C:\bancoDeDados\formulaInjetaveis\alterdb.ib",
     "user":     "SYSDBA",
     "password": "masterkey",
 }
 
-# ─────────────────────────────────────────
-# FIXTURES PYTEST
-# ─────────────────────────────────────────
-@pytest.fixture(scope="module")
+#configura a conexão com o banco de dados usando fdb
 def db_cursor():
     conn = fdb.connect(
         host=DB_CONFIG["host"],
@@ -61,6 +58,8 @@ def db_cursor():
     cur.close()
     conn.close()
 
+
+#valida de o fcerta ja esta aberto, se estiver ele conecta, se nao ele abre o sistema e depois faz o login, apos isso ele segue com o fluxo normalmente, e no final dos testes ele fecha o sistema
 @pytest.fixture(scope="module", autouse=True)
 def executar_fluxo():
     """Roda o fluxo completo antes dos testes do módulo."""
@@ -235,6 +234,9 @@ def run():
 
         etapa_abrir_menu_notas(main)
         etapa_incluir_notas()
+        TestNotaFiscal().test_nota_existe_no_banco(db_cursor())
+        TestNotaFiscal().test_cdpro_valor_esperado(db_cursor())
+        TestNotaFiscal().test_nrlot_valor_esperado(db_cursor()) 
         logger.success("FLUXO FINALIZADO COM SUCESSO.")
         return 0
 

@@ -3,7 +3,7 @@ import fdb
 
 DB_CONFIG = {
     "host":     "localhost",
-    "database": r"C:\bancoDeDados\NFCE-205607\alterdb.ib",  # ajusta o caminho
+    "database": r"C:\bancoDeDados\formulaInjetaveis\alterdb.ib",  # ajusta o caminho
     "user":     "SYSDBA",
     "password": "masterkey",
 }

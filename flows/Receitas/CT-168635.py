@@ -326,20 +326,6 @@ def etapa_preencher_receita() -> bool:
         return False  # Teste falha
 
 
-# ─────────────────────────────────────────
-# VALIDAÇÃO DO ALERTA (após fluxo completo)
-# ─────────────────────────────────────────
-
-
-
-# ─────────────────────────────────────────
-# TESTES / VALIDAÇÕES
-# ─────────────────────────────────────────
-
-
-# ─────────────────────────────────────────
-# EXECUÇÃO DIRETA (sem pytest)
-# ─────────────────────────────────────────
 def run():
     setup_logging(log_name="Receitas_flow", json_output=True)
     logger.info("=" * 60)
