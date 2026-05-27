@@ -8,6 +8,7 @@ import fdb
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from core.config import LOGIN, SENHA
 from core.logging_setup import setup_logging
 from core.actions import (
     wait_element,
@@ -25,8 +26,8 @@ from core.reporter import imprimir_inicio, imprimir_etapa, imprimir_resultado
 # ─────────────────────────────────────────
 EXE_PATH  = r"C:\Fcerta\fcerta.exe"
 WIN_LOGIN = "FórmulaCerta Autenticação de Usuário"
-USUARIO   = "FAGRONTECH"
-SENHA     = "321"
+USUARIO   = LOGIN
+SENHA     = SENHA
 
 # ─────────────────────────────────────────
 # CONFIGURAÇÃO — Receita
