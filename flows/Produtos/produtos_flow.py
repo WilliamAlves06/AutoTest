@@ -20,7 +20,7 @@ from core.actions import (
 
 # ========================= CONFIGURAÇÕES =========================
 EXE_PATH   = r"C:\Fcerta\fcerta.exe"
-USUARIO    = "FAGRONTECH"
+USUARIO    = "SUPERVISOR"
 SENHA      = "321"
 
 
@@ -64,9 +64,11 @@ def etapa_login_e_detectar_main(app: Application):
         login_win.set_focus()
 
         safe_type(login_win, USUARIO)
+        time.sleep(0.4)
         login_win.type_keys("{ENTER}")
 
         safe_type(login_win, SENHA)
+        time.sleep(0.4)
         login_win.type_keys("{ENTER}{ENTER}")
 
         logger.success("Login enviado")
@@ -85,7 +87,7 @@ def etapa_login_e_detectar_main(app: Application):
 
 
 def etapa_abrir_menu_produtos(main):
-    logger.info("Abrindo menu Arquivo (ALT+A)...")
+  
     main.set_focus()
     time.sleep(0.3)
     main.type_keys("%a")
@@ -97,13 +99,9 @@ def etapa_abrir_menu_produtos(main):
 def etapa_preencher_produtos():
     logger.info("Aguardando processo FCProdutos.exe...")
     app_prod = wait_app_by_exe("FCProdutos.exe", timeout=20)
-
     time.sleep(0.3)
     prod = app_prod.top_window()
-    logger.info(f"Janela capturada: '{prod.window_text()}'")
     prod.set_focus()
-
-    # Código do produto
     campo_codigo = wait_element(prod, class_name="TwwDBEdit", found_index=0, timeout=10)
     safe_type(campo_codigo, "69917")
     campo_codigo.type_keys("{ENTER}")

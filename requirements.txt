@@ -2,3 +2,8 @@ pywinauto==0.6.8
 loguru==0.7.2
 tenacity==8.2.3
 pyautogui==0.9.54
+pynput==1.7.6
+pywin32
+psutil
+pytest>=8.0
+fdb>=2.0

@@ -2,6 +2,18 @@ import sys
 from pathlib import Path
 from loguru import logger
 
+
+def _configure_stdout_utf8() -> None:
+    """Evita UnicodeEncodeError no console Windows (cp1252)."""
+    if sys.platform != "win32":
+        return
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def setup_logging(log_name: str = "automacao", json_output: bool = False):
     """
     Configura logging estruturado.
@@ -10,9 +22,11 @@ def setup_logging(log_name: str = "automacao", json_output: bool = False):
     - Arquivo   : só erros — histórico limpo
     - JSON      : só erros — integração com n8n / orquestradores RPA
     """
+    _configure_stdout_utf8()
+
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
- 
+
     logger.remove()
  
     # ── Terminal ──────────────────────

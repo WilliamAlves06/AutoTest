@@ -1,19 +1,28 @@
 import sys
 import time
-import pytest
 from pathlib import Path
 from pywinauto import Application
 from loguru import logger
-import fdb
+
+try:
+    import pytest
+except ImportError:
+    pytest = None
+
+try:
+    import fdb
+except ImportError:
+    fdb = None
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from core.config import LOGIN, SENHA
 from core.logging_setup import setup_logging
+from core.login_flow import login_ou_obter_principal
 from core.actions import (
     wait_element,
     wait_window,
     wait_app_by_exe,
-    wait_window_exact,
     safe_click,
     safe_type,
     screenshot_on_failure,
@@ -24,9 +33,8 @@ from core.reporter import imprimir_inicio, imprimir_etapa, imprimir_resultado
 # CONFIGURAÇÃO — SISTEMA
 # ─────────────────────────────────────────
 EXE_PATH  = r"C:\Fcerta\fcerta.exe"
-WIN_LOGIN = "FórmulaCerta Autenticação de Usuário"
-USUARIO   = "FAGRONTECH"
-SENHA     = "321"
+USUARIO   = LOGIN
+SENHA_CFG = SENHA
 
 # ─────────────────────────────────────────
 # CONFIGURAÇÃO — NOTA
@@ -45,39 +53,34 @@ DB_CONFIG = {
     "password": "masterkey",
 }
 
-#configura a conexão com o banco de dados usando fdb
-def db_cursor():
-    conn = fdb.connect(
-        host=DB_CONFIG["host"],
-        database=DB_CONFIG["database"],
-        user=DB_CONFIG["user"],
-        password=DB_CONFIG["password"],
-    )
-    cur = conn.cursor()
-    yield cur
-    cur.close()
-    conn.close()
+if pytest is not None:
 
+    @pytest.fixture(scope="module")
+    def db_cursor():
+        if fdb is None:
+            pytest.skip("fdb nao instalado (pip install fdb)")
+        conn = fdb.connect(
+            host=DB_CONFIG["host"],
+            database=DB_CONFIG["database"],
+            user=DB_CONFIG["user"],
+            password=DB_CONFIG["password"],
+        )
+        cur = conn.cursor()
+        yield cur
+        cur.close()
+        conn.close()
 
-#valida de o fcerta ja esta aberto, se estiver ele conecta, se nao ele abre o sistema e depois faz o login, apos isso ele segue com o fluxo normalmente, e no final dos testes ele fecha o sistema
-@pytest.fixture(scope="module", autouse=True)
-def executar_fluxo():
-    """Roda o fluxo completo antes dos testes do módulo."""
-    setup_logging(log_name="Notas_flow_test", json_output=True)
-    logger.info("Iniciando fluxo via pytest...")
+    @pytest.fixture(scope="module", autouse=True)
+    def executar_fluxo():
+        """Roda o fluxo completo antes dos testes do modulo."""
+        setup_logging(log_name="Notas_flow_test", json_output=True)
+        logger.info("Iniciando fluxo via pytest...")
 
-    app = etapa_conectar_ou_iniciar()
-
-    try:
-        main = wait_window(app, r".*FórmulaCerta.*", timeout=5, label="Principal")
-        logger.info("Já autenticado, pulando login.")
-    except TimeoutError:
-        etapa_login(app)
-        main = wait_window(app, r".*FórmulaCerta.*", timeout=20, label="Principal")
-
-    etapa_abrir_menu_notas(main)
-    etapa_incluir_notas()
-    logger.success("Fluxo concluído — iniciando validações.")
+        app = etapa_conectar_ou_iniciar()
+        main = login_ou_obter_principal(app, USUARIO, SENHA_CFG)
+        etapa_abrir_menu_notas(main)
+        etapa_incluir_notas()
+        logger.success("Fluxo concluido — iniciando validacoes.")
 
 # ─────────────────────────────────────────
 # FLUXO
@@ -91,17 +94,6 @@ def etapa_conectar_ou_iniciar() -> Application:
     except Exception:
         logger.info("Sistema não estava aberto — iniciando...")
         return Application(backend="uia").start(EXE_PATH)
-
-def etapa_login(app: Application):
-    """Aguarda tela de login, preenche usuário e senha."""
-    logger.info("Aguardando tela de login...")
-    login = wait_window_exact(app, WIN_LOGIN, timeout=25, label="Login")
-    login.set_focus()
-    safe_type(login, USUARIO, label="usuário")
-    login.type_keys("{ENTER}")
-    safe_type(login, SENHA, label="senha")
-    login.type_keys("{ENTER}{ENTER}")
-    logger.success("Login enviado.")
 
 def etapa_abrir_menu_notas(main) -> None:
     """Abre menu Arquivo → Notas via atalho de teclado."""
@@ -225,12 +217,7 @@ def run():
     try:
         app = etapa_conectar_ou_iniciar()
 
-        try:
-            main = wait_window(app, r".*FórmulaCerta.*", timeout=5, label="Principal")
-            logger.info("Sistema já autenticado, pulando login.")
-        except TimeoutError:
-            etapa_login(app)
-            main = wait_window(app, r".*FórmulaCerta.*", timeout=20, label="Principal")
+        main = login_ou_obter_principal(app, USUARIO, SENHA_CFG)
 
         etapa_abrir_menu_notas(main)
         etapa_incluir_notas()

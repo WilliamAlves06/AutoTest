@@ -1,8 +1,0 @@
-2026-05-26 15:49:40.368 | ERROR    | run:168 — FALHA NO FLUXO: Exception: Nenhuma janela válida encontrada
-2026-05-26 15:49:40.374 | ERROR    | run:169 — Traceback (most recent call last):
-  File "C:\QA\teste automatizados\V1\flows\Produtos\Produtos_flow.py", line 157, in run
-    main = etapa_login_e_detectar_main(app)
-  File "C:\QA\teste automatizados\V1\flows\Produtos\Produtos_flow.py", line 82, in etapa_login_e_detectar_main
-    raise Exception("Nenhuma janela válida encontrada")
-Exception: Nenhuma janela válida encontrada
-
