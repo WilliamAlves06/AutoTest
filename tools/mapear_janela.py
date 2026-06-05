@@ -30,15 +30,39 @@ from core.logging_setup import setup_logging
 from core.recorder.locator import ElementLocator
 
 RELEVANT_CLASSES = (
+    # Botoes
     "TButton",
-    "TEdit",
-    "TLabel",
-    "TCheckBox",
-    "TComboBox",
-    "TwwDBEdit",
     "TBitBtn",
     "TSpeedButton",
+    "TFagronButton",
+    # Campos de texto / edicao
+    "TEdit",
+    "TMemo",
+    "TwwDBEdit",
+    "TDBEdit",
+    "TDBMemo",
+    # Combos / lookups
+    "TComboBox",
+    "TDBComboBox",
+    "TwwDBComboBox",
+    "TwwDBLookupCombo",
+    "TwwDBLookupComboDlg",
+    # Selecao
+    "TCheckBox",
+    "TDBCheckBox",
+    "TRadioButton",
+    "TRadioGroup",
+    "TDateTimePicker",
+    # Grades
+    "TwwDBGrid",
+    "TDBGrid",
+    "TStringGrid",
+    # Rotulos
+    "TLabel",
 )
+
+# Conjunto para teste de pertinencia O(1) durante a varredura recursiva.
+_RELEVANT_SET = frozenset(RELEVANT_CLASSES)
 
 OUTPUT_DIR = ROOT / "output"
 _DEFAULT_EXE = r"C:\Fcerta\fcerta.exe"
@@ -263,6 +287,105 @@ def _coletar_elemento(
     }
 
 
+def _safe_handle(ctrl) -> int | None:
+    try:
+        return ctrl.handle
+    except Exception:
+        return None
+
+
+def _varrer_recursivo(janela) -> list:
+    """
+    Percorre TODA a arvore de controles em profundidade (depth-first), descendo
+    explicitamente em qualquer container — paineis (TPanel), sessoes/group boxes
+    (TGroupBox), page controls e abas (TPageControl/TTabSheet), scroll boxes etc.
+    — em qualquer nivel de aninhamento.
+
+    Garante que campos aninhados dentro de sessoes/paineis sejam alcancados, sem
+    duplicar (dedup por handle nativo).
+    """
+    coletados: list = []
+    vistos: set[int] = set()
+
+    try:
+        raizes = list(janela.children())
+    except Exception as exc:
+        logger.debug(f"children() da janela falhou: {exc}")
+        raizes = []
+
+    pilha = list(reversed(raizes))
+    while pilha:
+        ctrl = pilha.pop()
+        handle = _safe_handle(ctrl)
+        if handle is not None:
+            if handle in vistos:
+                continue
+            vistos.add(handle)
+
+        coletados.append(ctrl)
+
+        # Desce SEMPRE no controle, seja ele um campo ou um container. Assim
+        # campos dentro de paineis/sessoes em qualquer nivel sao alcancados.
+        try:
+            filhos = list(ctrl.children())
+        except Exception as exc:
+            logger.debug(f"children() falhou em descendente: {exc}")
+            filhos = []
+        if filhos:
+            pilha.extend(reversed(filhos))
+
+    return coletados
+
+
+def _arvore_completa(
+    janela,
+    on_progress: Callable[[str], None] | None,
+) -> list:
+    """
+    Lista completa de descendentes em qualquer nivel, sem duplicar.
+
+    Usa primeiro `descendants()` (mesma enumeracao que `child_window` emprega em
+    tempo de execucao) para preservar a ordem usada no calculo de `found_index`.
+    Em seguida reforca com uma varredura recursiva explicita por `.children()`,
+    anexando ao final apenas controles que `descendants()` nao tenha alcancado —
+    garantindo abrangencia em paineis/sessoes sem alterar os indices ja validos.
+    """
+    handles: set[int] = set()
+    ordenados: list = []
+
+    try:
+        base = list(janela.descendants())
+    except Exception as exc:
+        logger.warning(f"descendants() da janela falhou: {exc}")
+        base = []
+
+    for ctrl in base:
+        handle = _safe_handle(ctrl)
+        if handle is not None:
+            if handle in handles:
+                continue
+            handles.add(handle)
+        ordenados.append(ctrl)
+
+    extras = 0
+    for ctrl in _varrer_recursivo(janela):
+        handle = _safe_handle(ctrl)
+        if handle is not None and handle in handles:
+            continue
+        if handle is not None:
+            handles.add(handle)
+        ordenados.append(ctrl)
+        extras += 1
+
+    if extras:
+        _emitir(
+            on_progress,
+            f"  +{extras} controles adicionais via varredura recursiva de paineis/sessoes.",
+        )
+
+    return ordenados
+
+
 def _varrer_janela(
     janela,
     locator: ElementLocator,
@@ -273,15 +396,25 @@ def _varrer_janela(
     class_counters: dict[str, int] = defaultdict(int)
     tree_instance = 0
 
+    _emitir(on_progress, "Coletando arvore completa de controles (todos os niveis)...")
+    todos = _arvore_completa(janela, on_progress)
+    _emitir(on_progress, f"  {len(todos)} controles na arvore (todos os niveis).")
+
+    # Agrupa por classe relevante preservando a ordem depth-first de descendants(),
+    # mantendo o found_index consistente com window.child_window(found_index=...).
+    por_classe: dict[str, list] = defaultdict(list)
+    for ctrl in todos:
+        cls = locator._safe_class(ctrl)
+        if cls in _RELEVANT_SET:
+            por_classe[cls].append(ctrl)
+
     for class_name in RELEVANT_CLASSES:
-        _emitir(on_progress, f"Varrendo {class_name}...")
-        n_classe = 0
-        try:
-            controles = janela.descendants(class_name=class_name)
-        except Exception as exc:
-            logger.warning(f"descendants({class_name}) falhou: {exc}")
+        controles = por_classe.get(class_name)
+        if not controles:
             continue
 
+        _emitir(on_progress, f"Varrendo {class_name}...")
+        n_classe = 0
         for ctrl in controles:
             try:
                 item = _coletar_elemento(ctrl, locator, class_name, incluir_ocultos)
