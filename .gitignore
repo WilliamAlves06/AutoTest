@@ -1,0 +1,40 @@
+# ─────────────────────────────────────────────────────────────
+# FC Automation — arquivos que NÃO entram no repositório
+# (gerados em runtime, ambiente local ou ferramentas de IDE)
+# ─────────────────────────────────────────────────────────────
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Ambiente virtual
+.venv/
+venv/
+env/
+ENV/
+
+# Cache de testes
+.pytest_cache/
+.cache/
+
+# Configurações locais de IDE / assistentes
+.claude/
+.vscode/
+.idea/
+*.code-workspace
+
+# Logs e evidências geradas durante a execução dos testes
+logs/
+
+# Saídas brutas do mapeador de janelas (dumps de exploração)
+output/
+
+# Sistema operacional
+Thumbs.db
+desktop.ini
+.DS_Store

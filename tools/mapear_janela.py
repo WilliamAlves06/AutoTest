@@ -35,12 +35,14 @@ RELEVANT_CLASSES = (
     "TBitBtn",
     "TSpeedButton",
     "TFagronButton",
+    "TToolButton",
     # Campos de texto / edicao
     "TEdit",
     "TMemo",
     "TwwDBEdit",
     "TDBEdit",
     "TDBMemo",
+    "TwwDBRichEdit",
     # Combos / lookups
     "TComboBox",
     "TDBComboBox",
@@ -53,16 +55,95 @@ RELEVANT_CLASSES = (
     "TRadioButton",
     "TRadioGroup",
     "TDateTimePicker",
+    "TwwDBDateTimePicker",
     # Grades
     "TwwDBGrid",
     "TDBGrid",
     "TStringGrid",
     # Rotulos
     "TLabel",
+    # DevExpress (ExpressEditors / ExpressBars / ExpressGrid / ExpressPageControl)
+    # — confirmado no .dfm de FC11 (form principal de Filiais): o modulo mistura
+    # InfoPower (Tww*), componentes proprios (TFagron*) e DevExpress (Tcx*).
+    "TcxButton",
+    "TcxCheckBox",
+    "TcxDBCheckBox",
+    "TcxDBLookupComboBox",
+    "TcxCustomComboBoxInnerEdit",
+    "TcxGrid",
+    "TcxPageControl",
+    "TcxTabSheet",
+    # JVCL
+    "TJvDBComboBox",
 )
 
 # Conjunto para teste de pertinencia O(1) durante a varredura recursiva.
 _RELEVANT_SET = frozenset(RELEVANT_CLASSES)
+
+# Alguns controles (botoes de toolbar do DevExpress, rotulos estaticos) nao
+# expoem class_name nenhum via UIA — so dao para identificar pelo control_type/
+# friendly_class_name. Mapeia o control_type da UIA para um rotulo de exportacao.
+_FALLBACK_CONTROL_TYPES = {
+    "Button": "Button",
+    "Edit": "Edit",
+    "ComboBox": "ComboBox",
+    "CheckBox": "CheckBox",
+    "Text": "Static",
+}
+
+# friendly_class_name de elementos de moldura da janela (barra de titulo, menu)
+# que tambem aparecem com class_name vazio mas nao sao campos do formulario.
+_FALLBACK_EXCLUDE_FRIENDLY = frozenset({
+    "TitleBar", "Menu", "MenuBar", "MenuItem", "ScrollBar",
+})
+
+# Legendas dos botoes de controle da janela (minimizar/maximizar/fechar) —
+# tambem reportam control_type=Button com class_name vazio, mas nao sao campos.
+_FALLBACK_EXCLUDE_TEXT = frozenset({
+    "minimizar", "maximizar", "restaurar", "fechar",
+    "minimize", "maximize", "restore", "close",
+})
+
+
+def _safe_friendly(ctrl) -> str:
+    try:
+        return ctrl.friendly_class_name() or ""
+    except Exception:
+        return ""
+
+
+def _classificar_controle(ctrl, locator: ElementLocator) -> tuple[str, str] | None:
+    """
+    Decide se um controle deve ser exportado e sob qual rotulo de agrupamento.
+
+    1. Se tiver class_name conhecido (VCL/DevExpress/JVCL em RELEVANT_CLASSES),
+       agrupa por ele — comportamento original.
+    2. Se class_name vier vazio (comum em botoes de toolbar e rotulos estaticos
+       do DevExpress, que a UIA expoe sem ClassName), usa control_type/
+       friendly_class_name como fallback — e descarta elementos de moldura da
+       janela (titulo, menu, botoes minimizar/maximizar/fechar).
+
+    Retorna (chave_de_agrupamento, rotulo_para_exportacao) ou None se irrelevante.
+    """
+    cls = locator._safe_class(ctrl)
+    if cls:
+        return (cls, cls) if cls in _RELEVANT_SET else None
+
+    friendly = _safe_friendly(ctrl)
+    if friendly in _FALLBACK_EXCLUDE_FRIENDLY:
+        return None
+
+    control_type = locator._safe_control_type(ctrl) or ""
+    rotulo = _FALLBACK_CONTROL_TYPES.get(control_type)
+    if rotulo is None:
+        return None
+
+    texto = (locator._safe_title(ctrl) or "").strip().lower()
+    if texto in _FALLBACK_EXCLUDE_TEXT:
+        return None
+
+    return (f"?{rotulo}", rotulo)
+
 
 OUTPUT_DIR = ROOT / "output"
 _DEFAULT_EXE = r"C:\Fcerta\fcerta.exe"
@@ -237,7 +318,7 @@ def _safe_visible(ctrl) -> bool | None:
     try:
         return bool(ctrl.is_visible())
     except Exception as exc:
-        logger.debug(f"is_visible falhou: {exc}")
+        logger.warning(f"is_visible falhou (provavel erro COM): {exc}", exc_info=True)
         return None
 
 
@@ -245,7 +326,7 @@ def _safe_enabled(ctrl) -> bool | None:
     try:
         return bool(ctrl.is_enabled())
     except Exception as exc:
-        logger.debug(f"is_enabled falhou: {exc}")
+        logger.warning(f"is_enabled falhou (provavel erro COM): {exc}", exc_info=True)
         return None
 
 
@@ -254,33 +335,47 @@ def _safe_rectangle(ctrl) -> list[int] | None:
         rect = ctrl.rectangle()
         return [rect.left, rect.top, rect.right, rect.bottom]
     except Exception as exc:
-        logger.debug(f"rectangle falhou: {exc}")
+        logger.warning(f"rectangle falhou (provavel erro COM): {exc}", exc_info=True)
         return None
+
+
+def _safe_automation_id(ctrl) -> str:
+    try:
+        v = ctrl.automation_id()
+        return str(v).strip() if v else ""
+    except Exception:
+        return ""
 
 
 def _coletar_elemento(
     ctrl,
     locator: ElementLocator,
-    class_name: str,
+    rotulo: str,
     incluir_ocultos: bool,
 ) -> dict | None:
     visible = _safe_visible(ctrl)
     if not incluir_ocultos and visible is not True:
         return None
 
+    titulo_ctrl = locator._safe_title(ctrl) or ""
+
     rectangle = _safe_rectangle(ctrl)
     if rectangle is None:
-        logger.warning(f"Sem rectangle para {class_name} — elemento ignorado")
+        logger.warning(f"Sem rectangle para {rotulo} '{titulo_ctrl}' — elemento ignorado")
         return None
 
     enabled = _safe_enabled(ctrl)
     if enabled is None:
-        logger.warning(f"Sem is_enabled para {class_name} — elemento ignorado")
+        logger.warning(f"Sem is_enabled para {rotulo} '{titulo_ctrl}' — elemento ignorado")
         return None
 
     return {
-        "class_name": class_name,
-        "title": locator._safe_title(ctrl) or "",
+        # class_name real do controle (pode vir vazio — ver _classificar_controle;
+        # nesse caso control_type/automation_id sao as unicas formas de localiza-lo).
+        "class_name": locator._safe_class(ctrl) or "",
+        "control_type": locator._safe_control_type(ctrl) or "",
+        "automation_id": _safe_automation_id(ctrl),
+        "title": titulo_ctrl,
         "is_enabled": enabled,
         "is_visible": visible if visible is not None else False,
         "rectangle": rectangle,
@@ -294,7 +389,7 @@ def _safe_handle(ctrl) -> int | None:
         return None
 
 
-def _varrer_recursivo(janela) -> list:
+def _varrer_recursivo(janela) -> tuple[list, int]:
     """
     Percorre TODA a arvore de controles em profundidade (depth-first), descendo
     explicitamente em qualquer container — paineis (TPanel), sessoes/group boxes
@@ -303,14 +398,20 @@ def _varrer_recursivo(janela) -> list:
 
     Garante que campos aninhados dentro de sessoes/paineis sejam alcancados, sem
     duplicar (dedup por handle nativo).
+
+    Retorna (controles_coletados, total_de_falhas_em_children). Falhas aqui
+    costumam ser erros COM (ex.: thread sem CoInitialize) que truncam a
+    travessia silenciosamente — por isso sao contadas e logadas com traceback.
     """
     coletados: list = []
     vistos: set[int] = set()
+    falhas = 0
 
     try:
         raizes = list(janela.children())
     except Exception as exc:
-        logger.debug(f"children() da janela falhou: {exc}")
+        logger.warning(f"children() da janela falhou (provavel erro COM): {exc}", exc_info=True)
+        falhas += 1
         raizes = []
 
     pilha = list(reversed(raizes))
@@ -329,12 +430,55 @@ def _varrer_recursivo(janela) -> list:
         try:
             filhos = list(ctrl.children())
         except Exception as exc:
-            logger.debug(f"children() falhou em descendente: {exc}")
+            logger.warning(
+                f"children() falhou em descendente '{_safe_class_for_log(ctrl)}' "
+                f"(provavel erro COM): {exc}",
+                exc_info=True,
+            )
+            falhas += 1
             filhos = []
         if filhos:
             pilha.extend(reversed(filhos))
 
-    return coletados
+    return coletados, falhas
+
+
+def _safe_class_for_log(ctrl) -> str:
+    try:
+        return ctrl.class_name() or "?"
+    except Exception:
+        return "?"
+
+
+def _assinatura_visual(ctrl) -> tuple:
+    """
+    Identidade visual estavel para deduplicar controles "sem janela" propria
+    (ex.: TFagronButton/TLabel, pintados no canvas do painel pai — sem HWND).
+    Esses controles podem ser descobertos duas vezes pela travessia
+    (descendants() + varredura recursiva de paineis), cada vez com um
+    `.handle` diferente para o mesmo elemento visual — entao o dedup por
+    handle nao os pega. O par (control_type, texto, automation_id, retangulo)
+    identifica o elemento de forma estavel independente de qual caminho da
+    travessia o descobriu.
+    """
+    try:
+        r = ctrl.rectangle()
+        rect = (r.left, r.top, r.right, r.bottom)
+    except Exception:
+        rect = None
+    try:
+        ctrl_type = str(ctrl.element_info.control_type)
+    except Exception:
+        ctrl_type = None
+    try:
+        texto = ctrl.window_text()
+    except Exception:
+        texto = None
+    try:
+        auto_id = ctrl.automation_id()
+    except Exception:
+        auto_id = None
+    return (ctrl_type, texto, auto_id, rect)
 
 
 def _arvore_completa(
@@ -351,29 +495,41 @@ def _arvore_completa(
     garantindo abrangencia em paineis/sessoes sem alterar os indices ja validos.
     """
     handles: set[int] = set()
+    assinaturas: set[tuple] = set()
     ordenados: list = []
+
+    def _ja_visto(ctrl) -> bool:
+        """Marca o controle como visto; retorna True se ja apareceu antes.
+        Usa handle quando disponivel; senao cai para a assinatura visual
+        (controles sem HWND propria — ver _assinatura_visual)."""
+        handle = _safe_handle(ctrl)
+        if handle is not None:
+            if handle in handles:
+                return True
+            handles.add(handle)
+            return False
+        assinatura = _assinatura_visual(ctrl)
+        if assinatura in assinaturas:
+            return True
+        assinaturas.add(assinatura)
+        return False
 
     try:
         base = list(janela.descendants())
     except Exception as exc:
-        logger.warning(f"descendants() da janela falhou: {exc}")
+        logger.warning(f"descendants() da janela falhou (provavel erro COM): {exc}", exc_info=True)
         base = []
 
     for ctrl in base:
-        handle = _safe_handle(ctrl)
-        if handle is not None:
-            if handle in handles:
-                continue
-            handles.add(handle)
+        if _ja_visto(ctrl):
+            continue
         ordenados.append(ctrl)
 
     extras = 0
-    for ctrl in _varrer_recursivo(janela):
-        handle = _safe_handle(ctrl)
-        if handle is not None and handle in handles:
+    coletados_recursivo, falhas = _varrer_recursivo(janela)
+    for ctrl in coletados_recursivo:
+        if _ja_visto(ctrl):
             continue
-        if handle is not None:
-            handles.add(handle)
         ordenados.append(ctrl)
         extras += 1
 
@@ -381,6 +537,12 @@ def _arvore_completa(
         _emitir(
             on_progress,
             f"  +{extras} controles adicionais via varredura recursiva de paineis/sessoes.",
+        )
+    if falhas:
+        _emitir(
+            on_progress,
+            f"  Aviso: {falhas} falha(s) ao listar filhos durante a travessia "
+            f"(possivel COM nao inicializado na thread) — veja o log para detalhes.",
         )
 
     return ordenados
@@ -400,38 +562,53 @@ def _varrer_janela(
     todos = _arvore_completa(janela, on_progress)
     _emitir(on_progress, f"  {len(todos)} controles na arvore (todos os niveis).")
 
-    # Agrupa por classe relevante preservando a ordem depth-first de descendants(),
-    # mantendo o found_index consistente com window.child_window(found_index=...).
-    por_classe: dict[str, list] = defaultdict(list)
+    # Classifica cada controle: por class_name conhecido (RELEVANT_CLASSES) ou,
+    # quando a UIA nao expoe class_name (botoes de toolbar/rotulos do DevExpress),
+    # por control_type/friendly_class_name (ver _classificar_controle). Preserva
+    # a ordem depth-first de descendants(), mantendo found_index consistente com
+    # window.child_window(found_index=...) para os grupos de classe conhecida.
+    por_grupo: dict[str, list] = defaultdict(list)
+    rotulos: dict[str, str] = {}
+    ordem_fallback: list[str] = []
     for ctrl in todos:
-        cls = locator._safe_class(ctrl)
-        if cls in _RELEVANT_SET:
-            por_classe[cls].append(ctrl)
-
-    for class_name in RELEVANT_CLASSES:
-        controles = por_classe.get(class_name)
-        if not controles:
+        classificacao = _classificar_controle(ctrl, locator)
+        if classificacao is None:
             continue
+        chave, rotulo = classificacao
+        if chave not in por_grupo:
+            rotulos[chave] = rotulo
+            if chave not in _RELEVANT_SET:
+                ordem_fallback.append(chave)
+        por_grupo[chave].append(ctrl)
 
-        _emitir(on_progress, f"Varrendo {class_name}...")
+    # Classes conhecidas primeiro (na ordem de RELEVANT_CLASSES, compativel com
+    # mapeamentos anteriores), depois os grupos de fallback na ordem em que
+    # surgiram na arvore (botoes de toolbar, rotulos estaticos sem class_name).
+    chaves = [c for c in RELEVANT_CLASSES if c in por_grupo] + ordem_fallback
+
+    for chave in chaves:
+        controles = por_grupo[chave]
+        rotulo = rotulos[chave]
+
+        _emitir(on_progress, f"Varrendo {rotulo}...")
         n_classe = 0
         for ctrl in controles:
             try:
-                item = _coletar_elemento(ctrl, locator, class_name, incluir_ocultos)
+                item = _coletar_elemento(ctrl, locator, rotulo, incluir_ocultos)
                 if item is None:
                     continue
 
                 tree_instance += 1
-                item["found_index"] = class_counters[class_name]
+                item["found_index"] = class_counters[chave]
                 item["instance"] = tree_instance
-                class_counters[class_name] += 1
+                class_counters[chave] += 1
                 elementos.append(item)
                 n_classe += 1
             except Exception as exc:
-                logger.warning(f"Erro ao processar {class_name}: {exc}")
+                logger.warning(f"Erro ao processar {rotulo}: {exc}")
                 continue
 
-        _emitir(on_progress, f"  {class_name}: {n_classe} exportados (total {len(elementos)})")
+        _emitir(on_progress, f"  {rotulo}: {n_classe} exportados (total {len(elementos)})")
 
     return elementos
 
@@ -490,8 +667,13 @@ def mapear_janela(
         json.dump(elementos, f, ensure_ascii=False, indent=2)
 
     _emitir(on_progress, f"Total exportado: {len(elementos)}")
-    for cls_name, count in sorted(Counter(e["class_name"] for e in elementos).items()):
-        logger.info(f"  {cls_name}: {count}")
+    # Elementos sem class_name (fallback por control_type) sao agrupados pelo
+    # control_type no resumo, senao todos cairiam juntos sob a chave vazia "".
+    def _chave_resumo(item: dict) -> str:
+        return item["class_name"] or f"(sem class_name) {item.get('control_type', '?')}"
+
+    for chave, count in sorted(Counter(_chave_resumo(e) for e in elementos).items()):
+        logger.info(f"  {chave}: {count}")
 
     return out_path
 

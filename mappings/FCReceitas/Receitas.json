@@ -1,0 +1,60 @@
+{
+  "module": "FCReceitas",
+  "window": "Receitas",
+  "_nota": "TEMPLATE. Os botões abaixo usam localizadores já comprovados pelo fluxo atual (TFagronButton por título/índice). Os CAMPOS (TwwDBEdit) estão com found_index PROVISÓRIO: rode a aba 'Mapear' na janela Receitas e use 'Editar aliases' para preencher automation_id/found_index reais antes de executar em produção.",
+  "elements": [
+    {
+      "alias": "proxima",
+      "class_name": "TFagronButton",
+      "title": "Próxima",
+      "control_type": "Button"
+    },
+    {
+      "alias": "ok_requisicao",
+      "class_name": "TFagronButton",
+      "control_type": "Button",
+      "found_index": 1
+    },
+    {
+      "alias": "ok_embalagem",
+      "class_name": "TFagronButton",
+      "title": "Ok",
+      "control_type": "Button"
+    },
+    {
+      "alias": "cliente",
+      "class_name": "TwwDBEdit",
+      "control_type": "Edit",
+      "found_index": 0,
+      "_todo": "confirmar found_index/automation_id via mapeamento"
+    },
+    {
+      "alias": "medico",
+      "class_name": "TwwDBEdit",
+      "control_type": "Edit",
+      "found_index": 1,
+      "_todo": "confirmar found_index/automation_id via mapeamento"
+    },
+    {
+      "alias": "dias",
+      "class_name": "TwwDBEdit",
+      "control_type": "Edit",
+      "found_index": 2,
+      "_todo": "confirmar found_index/automation_id via mapeamento"
+    },
+    {
+      "alias": "produto",
+      "class_name": "TwwDBEdit",
+      "control_type": "Edit",
+      "found_index": 3,
+      "_todo": "confirmar found_index/automation_id via mapeamento"
+    },
+    {
+      "alias": "quantidade",
+      "class_name": "TwwDBEdit",
+      "control_type": "Edit",
+      "found_index": 4,
+      "_todo": "confirmar found_index/automation_id via mapeamento"
+    }
+  ]
+}

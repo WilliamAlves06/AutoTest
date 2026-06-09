@@ -1,24 +1,24 @@
-import pytest
-import fdb
+import sys
+from pathlib import Path
 
-DB_CONFIG = {
-    "host":     "localhost",
-    "database": r"C:\bancoDeDados\formulaInjetaveis\alterdb.ib",  # ajusta o caminho
-    "user":     "SYSDBA",
-    "password": "masterkey",
-}
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+import pytest
+
+from database.connection import conectar
+
 
 @pytest.fixture(scope="session")
 def db():
-    """Conexão InterBase reutilizada em todos os testes da sessão."""
-    conn = fdb.connect(
-        host=DB_CONFIG["host"],
-        database=DB_CONFIG["database"],
-        user=DB_CONFIG["user"],
-        password=DB_CONFIG["password"],
-    )
+    """Conexão Firebird/InterBase reutilizada na sessão.
+
+    Usa database.connection.conectar(), que descobre o banco a partir do
+    alterdb.ini do Formula Certa (fonte única — mesma do fc.db).
+    """
+    conn = conectar()
     yield conn
     conn.close()
+
 
 @pytest.fixture(scope="session")
 def cursor(db):

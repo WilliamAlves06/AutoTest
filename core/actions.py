@@ -85,6 +85,8 @@ def wait_element(
     title: str = None,
     class_name: str = None,
     found_index: int = None,
+    auto_id: str = None,
+    control_type: str = None,
     timeout: float = 15.0,
     label: str = "elemento",
 ) -> object:
@@ -93,6 +95,10 @@ def wait_element(
         kwargs["title"] = title
     if class_name:
         kwargs["class_name"] = class_name
+    if auto_id:
+        kwargs["auto_id"] = str(auto_id)
+    if control_type:
+        kwargs["control_type"] = control_type
     if found_index is not None:
         kwargs["found_index"] = found_index
 

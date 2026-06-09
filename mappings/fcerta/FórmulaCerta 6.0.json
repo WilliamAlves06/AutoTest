@@ -1,0 +1,104 @@
+{
+  "module": "fcerta",
+  "window": "FórmulaCerta 6.0",
+  "elements": [
+    {
+      "alias": "produtos",
+      "title": "Produtos",
+      "control_type": "Button",
+      "found_index": 0,
+      "instance": 1
+    },
+    {
+      "alias": "clientes",
+      "title": "Clientes",
+      "control_type": "Button",
+      "found_index": 1,
+      "instance": 2
+    },
+    {
+      "alias": "receitas",
+      "title": "Receitas",
+      "control_type": "Button",
+      "found_index": 2,
+      "instance": 3
+    },
+    {
+      "alias": "caixa",
+      "title": "Caixa",
+      "control_type": "Button",
+      "found_index": 3,
+      "instance": 4
+    },
+    {
+      "alias": "fluxo_de_caixa",
+      "title": "Fluxo de Caixa",
+      "control_type": "Button",
+      "found_index": 4,
+      "instance": 5
+    },
+    {
+      "alias": "cotacao",
+      "title": "Cotação",
+      "control_type": "Button",
+      "found_index": 5,
+      "instance": 6
+    },
+    {
+      "alias": "dashboard",
+      "title": "Dashboard",
+      "control_type": "Button",
+      "found_index": 6,
+      "instance": 7
+    },
+    {
+      "alias": "gestao_estoque",
+      "title": "Gestão Estoque",
+      "control_type": "Button",
+      "found_index": 7,
+      "instance": 8
+    },
+    {
+      "alias": "pesagem_monitorada",
+      "title": "Pesagem Monitorada",
+      "control_type": "Button",
+      "found_index": 8,
+      "instance": 9
+    },
+    {
+      "alias": "peso_medio",
+      "title": "Peso Médio",
+      "control_type": "Button",
+      "found_index": 9,
+      "instance": 10
+    },
+    {
+      "alias": "monitoramento",
+      "title": "Monitoramento",
+      "control_type": "Button",
+      "found_index": 10,
+      "instance": 11
+    },
+    {
+      "alias": "sngpc",
+      "title": "SNGPC",
+      "control_type": "Button",
+      "found_index": 11,
+      "instance": 12
+    },
+    {
+      "alias": "backup",
+      "title": "Backup",
+      "control_type": "Button",
+      "found_index": 12,
+      "instance": 13
+    },
+    {
+      "alias": "certificados",
+      "title": "Certificados",
+      "control_type": "Button",
+      "found_index": 13,
+      "instance": 14
+    }
+  ]
+}

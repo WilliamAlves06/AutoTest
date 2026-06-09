@@ -1,7 +1,7 @@
 {
   "base": "C:/QA/teste automatizados/autotest/V1/flows",
   "exe_path": "C:\\Fcerta\\fcerta.exe",
-  "login": "supervisor",
+  "login": "fagrontech",
   "senha": "321",
   "recorder": {
     "output_dir": "C:/QA/teste automatizados/autotest/V1/flows/Gravados",

@@ -1,5 +1,24 @@
+"""
+flows/Receitas/CT-168635.py
+Incluir Receita no Formula Certa — versão DSL (estilo Cypress).
+
+Princípios aplicados:
+  - foco DIRETO no componente por alias (fc.field/fc.button) — sem TAB de navegação,
+    sem coordenadas, sem found_index espalhado no teste;
+  - ENTER é usado apenas como COMMIT de valor (dispara o lookup do Delphi),
+    nunca para navegar entre campos;
+  - aprovação OBRIGATÓRIA no banco (fc.db.assert_saved) — a mensagem visual de
+    sucesso não basta.
+
+Pré-requisitos para rodar em produção:
+  1. mappings/FCReceitas/Receitas.json com os localizadores REAIS dos campos
+     (gerar pela aba "Mapear" + "Editar aliases"; o template atual marca os
+     campos com found_index provisório);
+  2. database/queries/receita_salva.sql apontando para a tabela/colunas reais
+     da receita (ver seção "Verificação" do plano).
+"""
+
 import sys
-import time
 from pathlib import Path
 
 try:
@@ -8,230 +27,163 @@ except ImportError:
     pytest = None
 from loguru import logger
 
-try:
-    import fdb
-except ImportError:
-    fdb = None
-
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.logging_setup import setup_logging
-from core.login_flow import login_ou_obter_principal
-from core.actions import (
-    wait_element,
-    wait_window,
-    wait_app_by_exe,
-    safe_click,
-    safe_type,
-    screenshot_on_failure,
-)
-from core.reporter import imprimir_inicio, imprimir_etapa, imprimir_resultado
+from core.actions import screenshot_on_failure
+from fc import fc
 
 # ─────────────────────────────────────────
 # CONFIGURAÇÃO — Receita
 # ─────────────────────────────────────────
-NUMERO_NOTA    = "8484"
-CDPRO_ESPERADO = "51639"
-NRLOT_ESPERADO = "123"
+CLIENTE    = "1"
+MEDICO     = "1"
+DIAS       = "30"
+PRODUTO    = "51639"
+QUANTIDADE = "200"
+
+# Valores que DEVEM estar persistidos no banco para o teste passar.
+EXPECTED_DB = {
+    "CDCLI": CLIENTE,
+    "CDMED": MEDICO,
+    "CDPRO": PRODUTO,
+    "QTD":   QUANTIDADE,
+    "DIAS":  DIAS,
+}
+
 
 # ─────────────────────────────────────────
-# FIXTURES PYTEST
+# HELPERS
+# ─────────────────────────────────────────
+def _fechar_se_aparecer(titulo: str, timeout: float = 8.0) -> None:
+    """Fecha um modal de lookup/alerta se ele surgir; ignora se não aparecer."""
+    try:
+        fc.window(titulo, timeout=timeout).close()
+        logger.success(f"✓ Janela '{titulo}' fechada")
+    except Exception:
+        logger.warning(f"⚠ Janela '{titulo}' não apareceu (seguindo)")
+
+
+# ─────────────────────────────────────────
+# FLUXO
+# ─────────────────────────────────────────
+def etapa_abrir_modulo() -> None:
+    logger.info("Login + abrindo módulo Receitas...")
+    fc.login()
+    fc.open_module("FCReceitas")
+
+
+def etapa_incluir() -> None:
+    logger.info("=" * 60)
+    logger.info("ETAPA: Incluir Receita")
+    logger.info("=" * 60)
+
+    # Sub-tela de Histórico do Cliente costuma abrir junto — fecha se vier.
+    _fechar_se_aparecer("Histórico do Cliente", timeout=5)
+
+    # F2 abre a tela de inclusão (ação de comando, não navegação).
+    fc.context.janela_ativa().type_keys("{F2}")
+    fc.window("Requisição", timeout=10).should_exist()
+
+    fc.button("Próxima").double_click()
+    fc.button("ok_requisicao").click()
+    logger.success("✓ Requisição criada")
+
+
+def etapa_preencher() -> None:
+    logger.info("ETAPA: Preencher receita (foco direto por alias)")
+
+    fc.field("cliente").type(CLIENTE).press("{ENTER}")
+    _fechar_se_aparecer("Cadastro de Clientes")
+    _fechar_se_aparecer("Funcionário Recepção")
+
+    fc.field("medico").type(MEDICO).press("{ENTER}")
+    _fechar_se_aparecer("Cadastro de Médicos")
+
+    fc.field("dias").type(DIAS)
+
+    fc.field("produto").type(PRODUTO).press("{ENTER}")
+    _fechar_se_aparecer("Atenção!")
+
+    fc.field("quantidade").type(QUANTIDADE).press("{ENTER}")
+    _fechar_se_aparecer("Atenção!")
+
+    # Cadeia de confirmação até a embalagem.
+    try:
+        fc.window("Confirmação", timeout=10).ok()
+    except Exception:
+        logger.warning("⚠ 'Confirmação' não apareceu")
+    try:
+        fc.window("Componente", timeout=4).ok()
+    except Exception:
+        logger.warning("⚠ 'Componente' não apareceu")
+
+    fc.window("Embalagem", timeout=10).should_exist()
+    fc.button("ok_embalagem").double_click()
+    logger.success("✓ Receita preenchida e salva na tela")
+
+
+def etapa_validar_banco() -> None:
+    """Regra Oficial de Aprovação: só passa se persistiu no banco."""
+    logger.info("ETAPA: Validação obrigatória no banco")
+    fc.db.assert_saved(
+        query="receita_salva",
+        params={"produto": PRODUTO},
+        expected=EXPECTED_DB,
+    )
+
+
+# ─────────────────────────────────────────
+# PYTEST
 # ─────────────────────────────────────────
 if pytest is not None:
 
     @pytest.fixture(scope="module", autouse=True)
     def executar_fluxo():
         setup_logging(log_name="Receitas_flow_test", json_output=True)
-        main = login_ou_obter_principal()
-        etapa_abrir_menu_receitas(main)
-        app_receitas, receitas = etapa_obter_janela_receitas()
-        etapa_incluir_receitas(app_receitas, receitas)
-        etapa_preencher_receita(app_receitas, receitas)
-        logger.success("Fluxo concluido — iniciando validacoes.")
+        etapa_abrir_modulo()
+        etapa_incluir()
+        etapa_preencher()
+        logger.success("Fluxo concluído — iniciando validação no banco.")
+        yield
+        fc.reset()
+
+    def test_receita_persistida_no_banco():
+        etapa_validar_banco()
+
 
 # ─────────────────────────────────────────
-# FLUXO
+# EXECUÇÃO DIRETA
 # ─────────────────────────────────────────
-def etapa_abrir_menu_receitas(main) -> None:
-    """Abre menu Arquivo → Receitas via atalho de teclado."""
-    logger.info("Abrindo menu Arquivo (ALT+A)...")
-    main.set_focus()
-    time.sleep(0.3)
-    main.type_keys("%a")
-    time.sleep(0.4)
-    main.type_keys("{RIGHT}{RIGHT}{ENTER}")
-    logger.info("Módulo Receitas acionado.")
-
-
-def etapa_obter_janela_receitas():
-    """Aguarda o processo FCReceitas.exe e retorna (app_receitas, receitas)."""
-    logger.info("Aguardando processo FCReceitas.exe...")
-    app_receitas = wait_app_by_exe("FCReceitas.exe", timeout=20)
-    logger.success("✓ Processo FCReceitas.exe encontrado")
-    time.sleep(0.3)
-    receitas = app_receitas.top_window()
-    receitas.set_focus()
-    logger.info(f"Janela capturada: '{receitas.window_text()}'")
-    return app_receitas, receitas
-
-
-def etapa_incluir_receitas(app_receitas, receitas) -> None:
-    logger.info("=" * 60)
-    logger.info("INICIANDO ETAPA: Incluir Receitas")
-    logger.info("=" * 60)
-
-    logger.info("📍 [1/4] Tentando fechar sub-tela de Histórico do Cliente...")
-    time.sleep(0.5)
-    try:
-        historico = wait_window(app_receitas, "Histórico do Cliente", timeout=5, label="TfrHistorico")
-        historico.set_focus()
-        historico.type_keys("%{F4}")
-        logger.success("✓ Sub-tela de Histórico fechada com sucesso")
-        time.sleep(0.3)
-    except TimeoutError:
-        logger.warning("⚠ Sub-tela de Histórico não encontrada (timeout)")
-
-    logger.info("📍 [2/4] Abrindo tela de inclusão (F2)...")
-    receitas.type_keys("{F2}")
-    criacao_req = wait_window(app_receitas, "Requisição", timeout=10, label="TfrVisual")
-    logger.success("✓ Tela de Consulta aberta")
-    criacao_req.set_focus()
-
-    logger.info("📍 [3/4] Clicando em 'Próxima Requisição'...")
-    btn_proximo = wait_element(
-        criacao_req,
-        title="Próxima",
-        class_name="TFagronButton",
-        timeout=5,
-        label="Botão Próxima Requisição",
-    )
-    btn_proximo.set_focus()
-    btn_proximo.double_click_input()
-    logger.success("✓ Clique realizado com sucesso")
-
-    logger.info("📍 [4/4] Clicando em OK...")
-    btn_ok = wait_element(
-        criacao_req,
-        class_name="TFagronButton",
-        found_index=1,
-        timeout=5,
-        label="Botão OK",
-    )
-    btn_ok.set_focus()
-    safe_click(btn_ok)
-    logger.success("✓ Clique no botão OK realizado com sucesso")
-
-
-def etapa_preencher_receita(app_receitas, receitas) -> bool:
-    """Preenche os dados da requisição no módulo de receitas."""
-    receitas.set_focus()
-
-    receitas.type_keys("{TAB 2}")
-    time.sleep(0.2)
-    safe_type(receitas, "1", label="Campo Cliente")
-    receitas.type_keys("{TAB}")
-    time.sleep(1)
-
-    cad_cli = wait_window(app_receitas, "Cadastro de Clientes", timeout=10, label="TfrVisual")
-    logger.success("✓ Cadastro de Clientes aberto")
-    cad_cli.set_focus()
-    cad_cli.type_keys("%{F4}")
-    receitas.set_focus()
-    time.sleep(1)
-
-    receitas.type_keys("{TAB 3}")
-
-    func_rec = wait_window(app_receitas, "Funcionário Recepção", timeout=10, label="TfrVisual")
-    logger.success("✓ Funcionário Recepção aberto")
-    func_rec.set_focus()
-    func_rec.type_keys("%{F4}")
-    receitas.set_focus()
-
-    receitas.type_keys("{TAB}")
-    time.sleep(0.5)
-    safe_type(receitas, "1", label="Campo Médico")
-    receitas.type_keys("{TAB}")
-
-    cad_med = wait_window(app_receitas, "Cadastro de Médicos", timeout=10, label="TfrVisual")
-    logger.success("✓ Cadastro de Médicos aberto")
-    cad_med.set_focus()
-    cad_med.type_keys("%{F4}")
-    receitas.set_focus()
-
-    receitas.type_keys("{TAB 2}")
-    safe_type(receitas, "30", label="Campo Dias")
-    receitas.type_keys("{TAB 10}")
-    safe_type(receitas, "51639", label="Campo Produto")
-    receitas.type_keys("{ENTER}")
-
-    alert = wait_window(app_receitas, "Atenção!", timeout=10, label="TfrVisual")
-    logger.success("✓ Alerta exibido")
-    alert.set_focus()
-    alert.type_keys("%{F4}")
-    receitas.set_focus()
-
-    safe_type(receitas, "200", label="Campo Quantidade")
-    receitas.type_keys("{ENTER 3}")
-    alert.set_focus()
-    alert.type_keys("%{F4}")
-    receitas.set_focus()
-
-    confirmacao = wait_window(app_receitas, "Confirmação", timeout=10)
-    confirmacao.set_focus()
-    confirmacao.type_keys("{ENTER}")
-
-    componente = wait_window(app_receitas, "Componente", timeout=2)
-    componente.set_focus()
-    componente.type_keys("{ENTER}")
-
-    embalagem = wait_window(app_receitas, "Embalagem", timeout=2)
-    embalagem.set_focus()
-    btn_ok = wait_element(
-        embalagem,
-        title="Ok",
-        class_name="TFagronButton",
-        timeout=5,
-        label="Botão Ok",
-    )
-    btn_ok.set_focus()
-    btn_ok.double_click_input()
-
-    try:
-        wait_window(app_receitas, "Atenção!", timeout=10, label="TfrVisual")
-        logger.success("🎉 RECEITA PREENCHIDA COM SUCESSO - ALERTA EXIBIDO")
-        return True
-    except TimeoutError:
-        logger.error("❌ ALERTA NÃO FOI ENCONTRADO - VALIDAÇÃO FALHOU")
-        return False
-
-
-def run():
+def run() -> int:
     setup_logging(log_name="Receitas_flow", json_output=True)
     logger.info("=" * 60)
-    logger.info("🚀 INÍCIO DO FLUXO: RECEITAS")
+    logger.info("🚀 INÍCIO DO FLUXO: RECEITAS (DSL)")
     logger.info("=" * 60)
 
     try:
-        main = login_ou_obter_principal()
-        etapa_abrir_menu_receitas(main)
-
-        app_receitas, receitas = etapa_obter_janela_receitas()
-        etapa_incluir_receitas(app_receitas, receitas)
-        alerta_validado = etapa_preencher_receita(app_receitas, receitas)
+        etapa_abrir_modulo()
+        etapa_incluir()
+        etapa_preencher()
+        etapa_validar_banco()
 
         logger.info("=" * 60)
-        logger.success("🎉 FLUXO FINALIZADO COM SUCESSO")
+        logger.success("🎉 FLUXO FINALIZADO COM SUCESSO (tela + banco)")
         logger.info("=" * 60)
-        return 0 if alerta_validado else 1
+        return 0
 
+    except AssertionError as e:
+        logger.error(f"❌ REPROVADO NA VALIDAÇÃO DE BANCO: {e}")
+        screenshot_on_failure("receita_reprovada_banco")
+        return 1
     except Exception as e:
         import traceback
-        logger.info("=" * 60)
         logger.error(f"❌ FALHA NO FLUXO: {type(e).__name__}: {e}")
         logger.error(traceback.format_exc())
-        logger.info("=" * 60)
-        screenshot_on_failure("falha_geral")
+        screenshot_on_failure("receita_falha_geral")
         return 1
+    finally:
+        fc.reset()
 
 
 if __name__ == "__main__":

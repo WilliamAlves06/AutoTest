@@ -54,6 +54,7 @@ class App:
         self.btn_testes   = self._nav_btn("Testes",       self.mostrar_testes)
         self.btn_recorder = self._nav_btn("Recorder",     self.mostrar_recorder)
         self.btn_mapear   = self._nav_btn("Mapear",       self.mostrar_mapear)
+        self.btn_modulos  = self._nav_btn("Modulos",      self.mostrar_modulos)
         self.btn_config   = self._nav_btn("Configuracoes", self.mostrar_config)
 
         tk.Label(self.nav, text="v1.0", bg="#1a2235", fg="#3a4a5a",
@@ -75,7 +76,7 @@ class App:
         return btn
 
     def _nav_ativo(self, btn_ativo):
-        for btn in [self.btn_testes, self.btn_recorder, self.btn_mapear, self.btn_config]:
+        for btn in [self.btn_testes, self.btn_recorder, self.btn_mapear, self.btn_modulos, self.btn_config]:
             btn.config(bg="#1a2235", fg="#7a8fa6")
         btn_ativo.config(bg="#2563eb", fg="white")
 
@@ -388,6 +389,20 @@ class App:
         from pages.mapear_ui import MapearTab
         self.mapear_tab = MapearTab(self.frame_conteudo, self.config)
         self.mapear_tab.pack(fill="both", expand=True)
+
+    # ─────────────────────────────────────────
+    # TELA: MÓDULOS (inicialização)
+    # ─────────────────────────────────────────
+
+    def mostrar_modulos(self):
+        self._nav_ativo(self.btn_modulos)
+        self._limpar_conteudo()
+        self.tela_ativa = "modulos"
+        self.config = carregar_config()
+
+        from pages.modulos_ui import ModulosTab
+        self.modulos_tab = ModulosTab(self.frame_conteudo, self.config)
+        self.modulos_tab.pack(fill="both", expand=True)
 
     # ─────────────────────────────────────────
     # TELA: CONFIGURAÇÕES

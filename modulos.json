@@ -1,0 +1,24 @@
+{
+  "_ajuda": "Cada módulo: 'exe' = processo; 'menu' = lista de passos para abrir o módulo a partir da JANELA PRINCIPAL. [] = só anexa. Passos: teclas type_keys ('%a'=ALT+A, '{DOWN 3}', '{ENTER}'); item de menu por ÍNDICE '@menuitem:i,j' (Win32 .select — livre de resolução, recomendado); clique por coordenada '@click:X,Y' (fallback). Dica: na aba Modulos use 🎬 e CLIQUE no item do menu — grava '@menuitem' sozinho. Ex.: [\"@menuitem:1,4\"].",
+  "FCReceitas": {
+    "exe": "FCReceitas.exe",
+    "menu": [
+      "%a",
+      "{RIGHT}{RIGHT}{ENTER}"
+    ]
+  },
+  "FCFiliais": {
+    "exe": "FCFiliais.exe",
+    "menu": [
+      "%a",
+      "@menuitem:0,0"
+    ]
+  },
+  "FCProdutos": {
+    "exe": "FCProdutos.exe",
+    "menu": [
+      "%a",
+      "{DOWN}{DOWN}{ENTER}"
+    ]
+  }
+}
