@@ -17,8 +17,11 @@ from core.actions import (
     safe_type,
     screenshot_on_failure,
 )
+from data import produtos as dados
 
 # ========================= CONFIGURAÇÕES =========================
+# Códigos do cenário em data/produtos.py. (Login deste fluxo usa o usuário
+# SUPERVISOR — confirmar se é intencional; senão migrar para core.config.)
 EXE_PATH   = r"C:\Fcerta\fcerta.exe"
 USUARIO    = "SUPERVISOR"
 SENHA      = "321"
@@ -103,7 +106,7 @@ def etapa_preencher_produtos():
     prod = app_prod.top_window()
     prod.set_focus()
     campo_codigo = wait_element(prod, class_name="TwwDBEdit", found_index=0, timeout=10)
-    safe_type(campo_codigo, "69917")
+    safe_type(campo_codigo, dados.CODIGO)
     campo_codigo.type_keys("{ENTER}")
 
     # Navegação
@@ -127,7 +130,7 @@ def etapa_preencher_produtos():
 
     # Campo CBS/IBS
     campo_cbs = wait_element(prod, class_name="TwwDBComboBox", found_index=2, timeout=3)
-    safe_type(campo_cbs, "011005")
+    safe_type(campo_cbs, dados.CBS_IBS)
     campo_cbs.type_keys("{ENTER}")
 
     # Salvar

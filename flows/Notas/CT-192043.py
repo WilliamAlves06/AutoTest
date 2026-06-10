@@ -16,7 +16,7 @@ except ImportError:
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.config import LOGIN, SENHA
+from core.config import EXE_PATH, LOGIN, SENHA
 from core.logging_setup import setup_logging
 from core.login_flow import login_ou_obter_principal
 from core.actions import (
@@ -28,43 +28,29 @@ from core.actions import (
     screenshot_on_failure,
 )
 from core.reporter import imprimir_inicio, imprimir_etapa, imprimir_resultado
+from database.connection import conectar
+from data import notas as dados
 
 # ─────────────────────────────────────────
-# CONFIGURAÇÃO — SISTEMA
+# CONFIGURAÇÃO — SISTEMA (credenciais do .env, via core.config)
 # ─────────────────────────────────────────
-EXE_PATH  = r"C:\Fcerta\fcerta.exe"
 USUARIO   = LOGIN
 SENHA_CFG = SENHA
 
 # ─────────────────────────────────────────
-# CONFIGURAÇÃO — NOTA
+# CONFIGURAÇÃO — NOTA (massa de dados em data/notas.py)
 # ─────────────────────────────────────────
-NUMERO_NOTA    = "8484"
-CDPRO_ESPERADO = "51639"
-NRLOT_ESPERADO = "123"
-
-# ─────────────────────────────────────────
-# CONFIGURAÇÃO — BANCO
-# ─────────────────────────────────────────
-DB_CONFIG = {
-    "host":     "localhost",
-    "database": r"C:\bancoDeDados\formulaInjetaveis\alterdb.ib",
-    "user":     "SYSDBA",
-    "password": "masterkey",
-}
+NUMERO_NOTA    = dados.NUMERO_NOTA
+CDPRO_ESPERADO = dados.ESPERADO_DB["CDPRO"]
+NRLOT_ESPERADO = dados.ESPERADO_DB["NRLOT"]
 
 if pytest is not None:
 
     @pytest.fixture(scope="module")
     def db_cursor():
-        if fdb is None:
-            pytest.skip("fdb nao instalado (pip install fdb)")
-        conn = fdb.connect(
-            host=DB_CONFIG["host"],
-            database=DB_CONFIG["database"],
-            user=DB_CONFIG["user"],
-            password=DB_CONFIG["password"],
-        )
+        # Banco descoberto do alterdb.ini (fonte única) — corrige o bug anterior
+        # de apontar para um banco fixo/errado.
+        conn = conectar()
         cur = conn.cursor()
         yield cur
         cur.close()
