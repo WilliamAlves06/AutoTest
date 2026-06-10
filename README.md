@@ -162,7 +162,7 @@ copy .env.example .env   # depois edite FC_LOGIN / FC_SENHA
 | Aba | Para quê |
 |-----|----------|
 | **Testes** | Lista e executa os testes em `flows/`, com resumo PASSOU/FALHOU e logs. |
-| **Recorder** | Grava interações para gerar esqueleto de teste. |
+| **Recorder** | Grava cliques/digitação e **gera o teste já na DSL `fc`** (`fc.field`/`fc.button` por alias), registrando campos novos nos mappings. Toggle **"DSL fc"** (ligado por padrão; desligue para o formato legado `wait_element`). |
 | **Mapear** | Mapeia a janela e abre o **Editor de aliases** (👁 realce, 🎯 captura manual, 🔄 re-mapear, 📂 editar salvo). |
 | **Modulos** | Cadastra a **inicialização** de cada módulo (exe + passos de menu) com **🎬 gravador de teclas/cliques** (clique no item → grava `@menuitem:i,j`). Grava em `modulos.json`. |
 | **Configuracoes** | `exe_path`, login/senha, pasta base dos testes. |
@@ -301,6 +301,21 @@ Resolve `fc.field("alias")` para um elemento **vivo**, tentando nesta ordem
 - `fc.open_module(nome)` é **attach-first**: anexa ao processo se já estiver aberto;
   senão executa os passos de `menu` (de `modulos.json`) — teclas, `@menuitem:i,j` ou `@click`.
 - `Field/Button/Window` fazem foco direto + ações de `core/actions.py`.
+
+### Recorder — gravar e gerar teste na DSL `fc`
+A aba **Recorder** grava cliques/digitação/teclas (`core/recorder/action_detector.py`,
+backend `pynput`+Win32) e, na exportação, gera um teste **já na DSL `fc`**:
+
+- `core/recorder/fc_codegen.py` — converte as ações em `fc.login()` / `fc.open_module(...)` /
+  `fc.field("alias").type(...).press("{ENTER}")` / `fc.button("alias").click()`, e deixa o
+  TODO de validação no banco;
+- `core/recorder/alias_resolver.py` — resolve cada elemento para um **alias**: reaproveita o
+  alias-map do módulo (casando por `automation_id` ou `class+índice`) e, quando o campo é novo,
+  **cria um alias e o registra no mapping** (merge, sem sobrescrever os existentes).
+
+> É o análogo ao *codegen* do Playwright: em vez de coordenadas, sai código legível por alias —
+> e o mapeamento cresce sozinho conforme você grava. Toggle **"DSL fc"** liga/desliga (o formato
+> legado `wait_element` continua disponível).
 
 ### Registro de módulos — `modulos.json` + `fc/modules.py`
 Editável pelo app (aba **Modulos**) ou na mão. Lido a cada chamada (edições valem na hora).

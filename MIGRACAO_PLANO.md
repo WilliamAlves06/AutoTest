@@ -88,9 +88,12 @@ relatório HTML, CI).
 - [ ] Extrair tema central (cores/fontes). Avaliar **CustomTkinter**/**PySide6** p/ chegar perto do Figma.
 - Figma: https://www.figma.com/design/gZ1JuoH25ewfcFLiaL3WxL
 
-### Extra — Recorder estilo Playwright
-- [ ] Gravar interações (clique/digitação/foco) e gerar um `test_*.py` já na DSL `fc`,
-      resolvendo cada elemento para um alias do mapping (codegen).
+### Extra — Recorder estilo Playwright  ✅
+- [x] Gravar interações (clique/digitação/foco) e gerar um teste já na DSL `fc`,
+      resolvendo cada elemento para um alias do mapping (codegen) — `core/recorder/fc_codegen.py`.
+- [x] AliasResolver: reaproveita aliases existentes e registra os novos no mapping
+      (`core/recorder/alias_resolver.py` + `mapping_store.mesclar_window`).
+- [x] Toggle "DSL fc" na aba Recorder; testes unitários cobrindo o codegen.
 
 ---
 

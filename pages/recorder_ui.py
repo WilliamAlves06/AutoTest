@@ -29,6 +29,7 @@ from typing import Optional
 from core.config import carregar as carregar_config
 from core.recorder.action_detector import ActionDetector, DetectedAction
 from core.recorder.codegen import CodeGenerator
+from core.recorder.fc_codegen import FCCodeGenerator
 
 # ── Cores (mesmas do app.py) ──────────────────────────────────
 C_NAV       = "#1a2235"
@@ -57,6 +58,8 @@ class RecorderTab(tk.Frame):
         self.config_data = config
         self._detector = ActionDetector()
         self._codegen  = CodeGenerator()
+        self._fc_codegen = FCCodeGenerator()
+        self._usar_fc = tk.BooleanVar(master=self, value=True)  # gerar na DSL fc por padrão
         self._actions: list[DetectedAction] = []
         self._action_count = 0
         self._blink_state  = False
@@ -115,6 +118,13 @@ class RecorderTab(tk.Frame):
         self.entry_name.insert(0, "Teste_Gravado")
         self.entry_name.pack(side="left", ipady=4)
 
+        # Estilo de saída: DSL fc (recomendado) x legado wait_element
+        tk.Checkbutton(
+            hdr, text="DSL fc (aliases)", variable=self._usar_fc,
+            bg=C_WHITE, fg="#444", font=C_FONT, activebackground=C_WHITE,
+            selectcolor=C_WHITE, cursor="hand2",
+        ).pack(side="left", padx=8)
+
         # Status
         self.lbl_status = tk.Label(
             hdr, text="● PARADO", bg=C_WHITE,
@@ -166,7 +176,8 @@ class RecorderTab(tk.Frame):
         self._write_panel(
             "  Clique em Iniciar para gravar.\n"
             "  Clique na janela do Fcerta ANTES de Alt+A, setas e Enter.\n"
-            "  Preferir teclado; campos geram wait_element + safe_type.\n",
+            "  Com 'DSL fc' ligado: a exportação gera fc.field/fc.button por alias\n"
+            "  e registra campos novos nos mappings automaticamente.\n",
             tag="comment"
         )
 
@@ -257,16 +268,33 @@ class RecorderTab(tk.Frame):
         )
 
         try:
-            path = self._codegen.save(
-                actions=self._actions,
-                test_name=test_name,
-                output_dir=output_dir,
-                config=cfg,
-            )
-            messagebox.showinfo(
-                "Exportado com sucesso",
-                f"Script salvo em:\n{path}"
-            )
+            if self._usar_fc.get():
+                path = self._fc_codegen.save(
+                    actions=self._actions,
+                    test_name=test_name,
+                    output_dir=output_dir,
+                    persistir_aliases=True,
+                )
+                novos = self._fc_codegen.novos_aliases
+                resumo = ""
+                if novos:
+                    linhas = [
+                        f"  • {mod}: {', '.join(e['alias'] for e in els)}"
+                        for mod, els in novos.items()
+                    ]
+                    resumo = "\n\nAliases novos registrados nos mappings:\n" + "\n".join(linhas)
+                messagebox.showinfo(
+                    "Exportado (DSL fc)",
+                    f"Teste salvo em:\n{path}{resumo}",
+                )
+            else:
+                path = self._codegen.save(
+                    actions=self._actions,
+                    test_name=test_name,
+                    output_dir=output_dir,
+                    config=cfg,
+                )
+                messagebox.showinfo("Exportado com sucesso", f"Script salvo em:\n{path}")
         except Exception as e:
             messagebox.showerror("Erro ao exportar", str(e))
 

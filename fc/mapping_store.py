@@ -75,6 +75,29 @@ def _extrair(elemento: dict) -> dict:
     return out
 
 
+def mesclar_window(module: str, window: str, novos_elementos: list[dict]) -> Path:
+    """Mescla `novos_elementos` (dicts com 'alias') no mapa <module>/<window>.json.
+
+    Preserva os aliases já existentes (não sobrescreve) — usado pelo gravador para
+    registrar campos novos descobertos durante a gravação.
+    """
+    module = _norm_modulo(module)
+    caminho = caminho_mapa(module, window)
+
+    por_alias: dict[str, dict] = {}
+    if caminho.exists():
+        atual = json.loads(caminho.read_text(encoding="utf-8"))
+        for el in atual.get("elements", []):
+            if el.get("alias"):
+                por_alias[el["alias"]] = el
+
+    for el in novos_elementos:
+        extraido = _extrair(el)
+        por_alias.setdefault(extraido["alias"], extraido)  # não sobrescreve
+
+    return salvar_mapa(module, window, list(por_alias.values()))
+
+
 def carregar_mapa(module: str, window: str) -> dict:
     caminho = caminho_mapa(module, window)
     if not caminho.exists():
