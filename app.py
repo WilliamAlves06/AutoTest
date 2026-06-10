@@ -6,18 +6,10 @@ import threading
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog
 
-CONFIG_FILE = "config.json"
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-def carregar_config():
-    if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"base": "", "login": "", "senha": ""}
-
-def salvar_config(cfg):
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, indent=2, ensure_ascii=False)
+# Fonte única de configuração (config.json + segredos do .env).
+from core.config import carregar_config, salvar_config  # noqa: E402
 
 class App:
     def __init__(self, root):

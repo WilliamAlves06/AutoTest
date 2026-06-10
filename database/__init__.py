@@ -8,8 +8,8 @@ Uso típico:
                  expected={"CDCLI": "1", "CDPRO": "51639", "QTD": "200"})
 """
 
-from .firebird_client import FirebirdClient
 from .assertions import assert_saved
+from .firebird_client import FirebirdClient
 from .validators import comparar, todos_passaram
 
 __all__ = ["FirebirdClient", "assert_saved", "comparar", "todos_passaram"]

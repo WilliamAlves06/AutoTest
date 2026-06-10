@@ -26,11 +26,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 # Um único import traz tudo: fc, logger, setup_logging, imprimir_*,
 # screenshot_on_failure, comparar, todos_passaram.
 from fc.kit import *  # noqa: F401,F403
+from data import filiais as dados
 
 # ─────────────────────────────────────────
 # CONFIGURAÇÃO
 # ─────────────────────────────────────────
-CODIGO_FILIAL = "10"
+CODIGO_FILIAL = dados.CODIGO_CONSULTA
 
 
 # ─────────────────────────────────────────
@@ -74,6 +75,8 @@ if pytest is not None:
         yield
         fc.reset()
 
+    @pytest.mark.e2e
+    @pytest.mark.filiais
     def test_consulta_filial_bate_com_banco():
         etapa_validar()
 

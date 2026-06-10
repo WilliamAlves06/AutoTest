@@ -32,24 +32,19 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.logging_setup import setup_logging
 from core.actions import screenshot_on_failure
 from fc import fc
+from data import receitas as dados
 
 # ─────────────────────────────────────────
-# CONFIGURAÇÃO — Receita
+# CONFIGURAÇÃO — Receita (massa de dados em data/receitas.py)
 # ─────────────────────────────────────────
-CLIENTE    = "1"
-MEDICO     = "1"
-DIAS       = "30"
-PRODUTO    = "51639"
-QUANTIDADE = "200"
+CLIENTE    = dados.CLIENTE
+MEDICO     = dados.MEDICO
+DIAS       = dados.DIAS
+PRODUTO    = dados.PRODUTO
+QUANTIDADE = dados.QUANTIDADE
 
 # Valores que DEVEM estar persistidos no banco para o teste passar.
-EXPECTED_DB = {
-    "CDCLI": CLIENTE,
-    "CDMED": MEDICO,
-    "CDPRO": PRODUTO,
-    "QTD":   QUANTIDADE,
-    "DIAS":  DIAS,
-}
+EXPECTED_DB = dados.ESPERADO_DB
 
 
 # ─────────────────────────────────────────
@@ -148,6 +143,8 @@ if pytest is not None:
         yield
         fc.reset()
 
+    @pytest.mark.e2e
+    @pytest.mark.receitas
     def test_receita_persistida_no_banco():
         etapa_validar_banco()
 

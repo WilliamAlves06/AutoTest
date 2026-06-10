@@ -15,6 +15,7 @@ from __future__ import annotations
 from loguru import logger
 
 from core.reporter import imprimir_resultado
+
 from .firebird_client import FirebirdClient
 from .validators import comparar, todos_passaram
 

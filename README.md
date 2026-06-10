@@ -1,5 +1,7 @@
 # 🤖 FC Automation — automação para o Formula Certa (Delphi)
 
+[![CI](https://github.com/WilliamAlves06/AutoTest/actions/workflows/ci.yml/badge.svg)](https://github.com/WilliamAlves06/AutoTest/actions/workflows/ci.yml)
+
 Framework de automação de testes **desktop** para o sistema legado **Formula Certa**
 (Delphi/VCL). O QA escreve testes em comandos simples e legíveis — **sem TAB, sem
 coordenadas de mouse, sem conhecer os detalhes do Delphi** — e a aprovação é
@@ -123,7 +125,33 @@ python -m pip install -r requirements.txt
 ```
 
 Dependências principais: `pywinauto` (UIA), `pynput` (captura de teclado/mouse),
-`loguru`, `tenacity`, `pyautogui`/`pywin32`, `psutil`, `fdb`, `pytest`.
+`loguru`, `tenacity`, `pyautogui`/`pywin32`, `psutil`, `fdb`, `pytest`,
+`python-dotenv` (segredos), `pytest-html` (relatório), `ruff` (lint/CI).
+
+---
+
+## 🔐 Configuração e credenciais (`config.json` + `.env`)
+
+Há **uma única** fonte de configuração: [`core/config.py`](core/config.py). Ela junta:
+
+| Origem | O que guarda | Versionado? |
+|--------|--------------|-------------|
+| [`config.json`](config.json) | caminhos (`base`, `exe_path`, `recorder`) — **sem segredos** | ✅ sim |
+| `.env` | **credenciais** (`FC_LOGIN`, `FC_SENHA`) e, opcional, `FC_EXE_PATH` | ❌ **não** (no `.gitignore`) |
+
+`carregar_config()` resolve tudo (env sobrepõe o json) e devolve `login`/`senha`
+prontos — o resto do código nunca precisa saber a origem. `salvar_config()` grava
+os caminhos no `config.json` e **roteia os segredos para o `.env`**, então a aba
+**Configurações** continua funcionando sem nunca vazar senha para o git.
+
+**Primeiro uso:** copie o exemplo e preencha (ou use a aba Configurações):
+
+```powershell
+copy .env.example .env   # depois edite FC_LOGIN / FC_SENHA
+```
+
+> Nos testes, use `from core.config import LOGIN, SENHA, EXE_PATH` ou
+> `carregar_config()`. **Nunca** escreva usuário/senha direto no arquivo do teste.
 
 ---
 
@@ -146,9 +174,13 @@ Dependências principais: `pywinauto` (UIA), `pynput` (captura de teclado/mouse)
 ```
 V1/
 ├── app.py                     # App (Tkinter) — abas Testes/Recorder/Mapear/Modulos/Config
-├── config.json                # exe_path, login, senha, pasta base
+├── config.json                # caminhos: exe_path, pasta base, recorder (SEM segredos)
+├── .env                       # credenciais FC_LOGIN/FC_SENHA (gitignored — ver .env.example)
 ├── modulos.json               # inicialização dos módulos (exe + passos de menu: teclas/@menuitem)
 ├── requirements.txt
+│
+├── data/                      # Massa de dados dos testes (códigos, valores esperados)
+│   ├── filiais.py  notas.py  receitas.py  produtos.py
 │
 ├── fc/                        # A DSL "estilo Cypress"
 │   ├── __init__.py            #   expõe o objeto `fc`
@@ -233,6 +265,22 @@ Padroniza os localizadores sob um **alias**. O QA usa só o alias; nunca precisa
   ]
 }
 ```
+
+**Convenção de aliases** (mantém os mappings legíveis e estáveis):
+
+| Tipo | Convenção | Exemplos |
+|------|-----------|----------|
+| Campos (input) | substantivo em `Snake_Case` ou minúsculo do rótulo na tela | `Razao_Social`, `cliente`, `quantidade` |
+| Botões | verbo de ação, minúsculo | `consultar`, `incluir`, `salvar`, `ok_requisicao` |
+| Botão "OK" de uma janela | `ok_<janela>` (evita colisão entre telas) | `ok_embalagem`, `ok_requisicao` |
+| Grids/listas | `grid_<o quê>` | `grid_notas` |
+
+Regras: **um alias por elemento** dentro da janela; nomes **sem espaços/acentos**;
+prefira o termo que o usuário vê na tela. Aliases provisórios (com `found_index` a
+confirmar) ganham a marca `"_todo": true` no JSON até serem validados ao vivo.
+
+> A massa de dados (códigos digitados, valores esperados) fica em [`data/`](data/),
+> **não** nos arquivos de fluxo — assim o mesmo teste roda com cenários diferentes.
 
 ### Locator Engine — `fc/locator_engine.py`
 Resolve `fc.field("alias")` para um elemento **vivo**, tentando nesta ordem

@@ -11,6 +11,7 @@ from __future__ import annotations
 from loguru import logger
 
 from core.actions import safe_click, safe_type, wait_window
+
 from .locator_engine import resolver
 
 

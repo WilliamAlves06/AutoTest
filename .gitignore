@@ -12,6 +12,10 @@ __pycache__/
 build/
 dist/
 
+# Credenciais e segredos (NUNCA versionar) — veja .env.example
+.env
+.env.local
+
 # Ambiente virtual
 .venv/
 venv/

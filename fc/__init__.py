@@ -21,8 +21,8 @@ Ação na tela (foco direto, sem TAB/coordenadas) + validação obrigatória no 
 from __future__ import annotations
 
 from .context import FCContext
-from .elements import Field, Button, Window
 from .db_facade import DBFacade
+from .elements import Button, Field, Window
 
 
 class FC:

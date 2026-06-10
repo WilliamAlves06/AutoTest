@@ -1,0 +1,25 @@
+# Configuração do Ruff (lint) — usada localmente e no CI.
+target-version = "py310"
+line-length = 100
+
+extend-exclude = [
+    ".venv",
+    "output",
+    "logs",
+    "flows/Gravados",
+]
+
+[lint]
+# Conjunto pragmático: erros reais (F), pycodestyle (E/W) e ordenação de imports (I).
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",  # linha longa — comum nos comentários/tabelas existentes
+    "E402",  # import não-topo — usado de propósito após sys.path.insert
+    "E741",  # nomes ambíguos (l/I) — não vale travar o legado
+]
+
+[lint.per-file-ignores]
+# Os flows e o __init__ do kit reexportam com import *.
+"**/__init__.py" = ["F401", "F403"]
+"flows/**" = ["F401", "F403", "F405"]
+"fc/kit.py" = ["F401"]

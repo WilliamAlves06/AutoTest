@@ -6,4 +6,9 @@ pynput==1.7.6
 pywin32
 psutil
 pytest>=8.0
+pytest-html>=4.1
+python-dotenv>=1.0
 fdb>=2.0
+
+# Qualidade de código (CI)
+ruff>=0.4

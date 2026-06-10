@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancela execuções antigas do mesmo branch/PR.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-unit:
+    # Roda em Windows (não Ubuntu): o projeto depende de pywin32/pywinauto,
+    # que só instalam no Windows. O runner hospedado do GitHub basta para
+    # lint + smoke de import + testes unitários (que NÃO abrem o Formula Certa).
+    name: Lint + Unit (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint (ruff)
+        run: ruff check fc database data tests conftest.py core/config.py
+
+      - name: Smoke de import (sem abrir o app)
+        run: >
+          python -c "import core.config, data.filiais, data.receitas, data.notas,
+          data.produtos, database.validators, database.connection,
+          fc, fc.mapping_store, fc.locator_engine; print('imports OK')"
+
+      - name: Testes unitários
+        run: pytest tests -m unit --html=report.html --self-contained-html
+
+      - name: Publicar relatório HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-html-report
+          path: report.html
+          retention-days: 30
+
+  # ──────────────────────────────────────────────────────────────────────
+  # E2E desktop (Formula Certa + Firebird) — NÃO roda em runner de nuvem.
+  # Exige um *self-hosted runner Windows* com o fcerta.exe e o banco acessível.
+  # Descomente e registre um runner com os labels abaixo para habilitar.
+  # ──────────────────────────────────────────────────────────────────────
+  # e2e:
+  #   name: E2E (self-hosted Windows)
+  #   runs-on: [self-hosted, windows, fcerta]
+  #   needs: lint-unit
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Instalar dependências
+  #       run: pip install -r requirements.txt
+  #     - name: Fluxos E2E
+  #       run: pytest flows -m e2e --html=report-e2e.html --self-contained-html

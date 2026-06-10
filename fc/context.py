@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import time
 
+import psutil
 from loguru import logger
 
-import psutil
-
-from core.login_flow import login_ou_obter_principal
 from core.actions import wait_app_by_exe
+from core.login_flow import login_ou_obter_principal
+
 from . import mapping_store
 from .modules import info_modulo
 

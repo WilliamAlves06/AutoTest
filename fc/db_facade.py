@@ -8,8 +8,8 @@ database.assertions.assert_saved (a "Regra Oficial de Aprovação").
 
 from __future__ import annotations
 
-from database.firebird_client import FirebirdClient
 from database import assertions as _assertions
+from database.firebird_client import FirebirdClient
 
 
 class DBFacade:
