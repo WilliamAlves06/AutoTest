@@ -82,11 +82,14 @@ relatório HTML, CI).
       com `fcerta.exe` + Firebird.
 - [ ] Publicar relatório HTML como artifact + badge no README.
 
-### Fase 6 — GUI redesign (Figma)
-- [ ] Aplicar o design system do Figma na tela Testes (`app.py`/`pages/testes.py`).
-- [ ] Refazer `pages/configuracoes.py`, `pages/recorder_ui.py`, `pages/mapear_ui.py`, `pages/modulos_ui.py`.
-- [ ] Extrair tema central (cores/fontes). Avaliar **CustomTkinter**/**PySide6** p/ chegar perto do Figma.
-- Figma: https://www.figma.com/design/gZ1JuoH25ewfcFLiaL3WxL
+### Fase 6 — GUI redesign  ⏳ (em andamento)
+- [x] Tema central extraído (`ui/theme.py`) — tokens de cor/fonte/raio do mockup.
+- [x] Toolkit: **CustomTkinter** (necessário p/ cards arredondados/tema escuro do mockup).
+- [x] Tela **Testes** (dashboard) refeita: `ui/dashboard_testes.py` (cards, suítes, abas, ações).
+- [x] **Configurações** refeita no tema (`ui/config_page.py`).
+- [x] Shell com menu lateral (`ui/app_shell.py`); novo `app.py` (legado em `app_legacy.py`).
+- [ ] Re-estilizar Recorder/Mapear/Módulos (hoje hospedados funcionando, visual antigo).
+- Figma: acesso por MCP requer plano além do *Starter* — feito a partir do mockup.
 
 ### Extra — Recorder estilo Playwright  ✅
 - [x] Gravar interações (clique/digitação/foco) e gerar um teste já na DSL `fc`,

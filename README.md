@@ -157,7 +157,9 @@ copy .env.example .env   # depois edite FC_LOGIN / FC_SENHA
 
 ## 🖥️ As abas do app
 
-`python app.py` abre o painel com o menu lateral:
+`python app.py` abre o **AutoTest QA Studio** (interface escura, CustomTkinter — tema
+central em [ui/theme.py](ui/theme.py)). A versão antiga em Tkinter clássico continua
+disponível como fallback em [app_legacy.py](app_legacy.py). Menu lateral:
 
 | Aba | Para quê |
 |-----|----------|
@@ -173,7 +175,9 @@ copy .env.example .env   # depois edite FC_LOGIN / FC_SENHA
 
 ```
 V1/
-├── app.py                     # App (Tkinter) — abas Testes/Recorder/Mapear/Modulos/Config
+├── app.py                     # Entrypoint do QA Studio (GUI moderna em ui/)
+├── app_legacy.py              # GUI antiga (Tkinter clássico) — fallback
+├── ui/                        # GUI moderna (CustomTkinter): theme, widgets, dashboard, shell
 ├── config.json                # caminhos: exe_path, pasta base, recorder (SEM segredos)
 ├── .env                       # credenciais FC_LOGIN/FC_SENHA (gitignored — ver .env.example)
 ├── modulos.json               # inicialização dos módulos (exe + passos de menu: teclas/@menuitem)
