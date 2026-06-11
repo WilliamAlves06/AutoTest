@@ -12,6 +12,7 @@ from __future__ import annotations
 import customtkinter as ctk
 
 from core.config import carregar_config
+from ui import skin
 from ui import theme as T
 from ui.config_page import ConfigPage
 from ui.dashboard_testes import DashboardTestes
@@ -41,6 +42,7 @@ class StudioApp(ctk.CTk):
         self._recorder_tab = None
         self._botoes: dict[str, SidebarButton] = {}
 
+        skin.estilo_ttk(self)   # tema escuro p/ widgets ttk das telas legadas
         self._build_sidebar()
         self._content = ctk.CTkFrame(self, fg_color=T.BG_APP)
         self._content.pack(side="left", fill="both", expand=True)
@@ -111,14 +113,19 @@ class StudioApp(ctk.CTk):
         from pages.recorder_ui import RecorderTab
         self._recorder_tab = RecorderTab(self._content, self._cfg)
         self._recorder_tab.pack(fill="both", expand=True)
+        skin.aplicar(self._recorder_tab)
 
     def _tela_mapear(self):
         from pages.mapear_ui import MapearTab
-        MapearTab(self._content, self._cfg).pack(fill="both", expand=True)
+        tab = MapearTab(self._content, self._cfg)
+        tab.pack(fill="both", expand=True)
+        skin.aplicar(tab)
 
     def _tela_modulos(self):
         from pages.modulos_ui import ModulosTab
-        ModulosTab(self._content, self._cfg).pack(fill="both", expand=True)
+        tab = ModulosTab(self._content, self._cfg)
+        tab.pack(fill="both", expand=True)
+        skin.aplicar(tab)
 
     def _erro_tela(self, chave: str, exc: Exception):
         ctk.CTkLabel(

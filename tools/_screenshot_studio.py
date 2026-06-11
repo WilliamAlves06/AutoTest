@@ -32,7 +32,16 @@ def _grab(app, nome):
 def main():
     app = StudioApp()
     app.geometry("1280x820+40+20")
-    for tela in ("testes", "config"):
+    # seleciona uma suíte na tela de Testes p/ ver os testes aparecerem
+    app.mostrar("testes")
+    try:
+        dash = app._content.winfo_children()[0]
+        primeira = next(iter(dash._suites))
+        dash._select_suite(primeira)
+    except Exception:
+        pass
+    _grab(app, "testes")
+    for tela in ("recorder", "mapear", "modulos", "config"):
         app.mostrar(tela)
         _grab(app, tela)
     app.destroy()

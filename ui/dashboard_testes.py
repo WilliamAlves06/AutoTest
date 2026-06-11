@@ -113,7 +113,7 @@ class DashboardTestes(ctk.CTkFrame):
                                             font=T.font(11), padx=10, pady=2)
         self._lbl_qtd_suites.pack(side="right")
 
-        self._lista_suites = ctk.CTkScrollableFrame(painel_s, fg_color="transparent")
+        self._lista_suites = ctk.CTkScrollableFrame(painel_s, fg_color=T.BG_PANEL)
         self._lista_suites.pack(fill="both", expand=True, padx=8, pady=(0, 10))
 
         # ----- Painel de resultados -----
@@ -210,7 +210,17 @@ class DashboardTestes(ctk.CTkFrame):
         for n, item in self._itens.items():
             item.set_selected(n == nome)
         n = len(self._suites.get(nome, []))
-        self._lbl_info.configure(text=f"1 suíte selecionada · {n} teste{'s' if n != 1 else ''}")
+        self._lbl_info.configure(text=f"1 suíte selecionada · {n} teste{'s' if n != 1 else ''}",
+                                 text_color=T.TXT_DIM)
+        self._set_tab("resumo")   # mostra os testes da suíte na tabela
+
+    def _testes_pendentes(self) -> list[dict]:
+        """Linhas da suíte selecionada ainda não executadas (status '—')."""
+        if not self._suite_sel:
+            return []
+        return [{"nome": os.path.splitext(os.path.basename(c))[0],
+                 "modulo": self._suite_sel, "status": "—", "dur": None}
+                for c in self._suites.get(self._suite_sel, [])]
 
     # ── EXECUÇÃO ─────────────────────────────────────────────────
     def _executar_selecionados(self):
@@ -317,27 +327,34 @@ class DashboardTestes(ctk.CTkFrame):
             ctk.CTkLabel(head, text=txt, text_color=T.TXT_MUTED, font=T.font(10, "bold"),
                          width=w, anchor="w").pack(side="left")
 
-        linhas = self._resultados
         if self._tab == "falhas":
-            linhas = [r for r in linhas if r["status"] == "FAIL"]
+            linhas = [r for r in self._resultados if r["status"] == "FAIL"]
+        elif self._resultados:
+            linhas = self._resultados
+        else:
+            linhas = self._testes_pendentes()   # suíte selecionada, ainda não rodada
 
         if not linhas:
-            ctk.CTkLabel(self._tabela, text="Nenhum resultado ainda — rode uma suíte.",
-                         text_color=T.TXT_MUTED, font=T.font(12)).pack(anchor="w", pady=16)
+            msg = ("Selecione uma suíte para ver os testes."
+                   if self._tab != "falhas" else "Nenhuma falha.")
+            ctk.CTkLabel(self._tabela, text=msg, text_color=T.TXT_MUTED,
+                         font=T.font(12)).pack(anchor="w", pady=16)
             return
 
         for r in linhas:
             row = ctk.CTkFrame(self._tabela, fg_color="transparent")
             row.pack(fill="x", pady=2)
-            cel = ctk.CTkFrame(row, fg_color="transparent", width=90)
+            cel = ctk.CTkFrame(row, fg_color="transparent", width=90, height=26)
             cel.pack(side="left")
             cel.pack_propagate(False)
-            pill(cel, r["status"], r["status"]).pack(side="left")
+            rotulo = {"PASS": "PASS", "FAIL": "FAIL"}.get(r["status"], "pendente")
+            pill(cel, rotulo, r["status"]).pack(side="left")
             ctk.CTkLabel(row, text=r["nome"], text_color=T.TXT, font=T.font(12),
                          width=240, anchor="w").pack(side="left")
             ctk.CTkLabel(row, text=r["modulo"], text_color=T.TXT_DIM, font=T.font(12),
                          width=130, anchor="w").pack(side="left")
-            ctk.CTkLabel(row, text=f"{r['dur']:.1f}s", text_color=T.TXT_DIM, font=T.font(12),
+            dur = f"{r['dur']:.1f}s" if r.get("dur") is not None else "—"
+            ctk.CTkLabel(row, text=dur, text_color=T.TXT_DIM, font=T.font(12),
                          width=90, anchor="w").pack(side="left")
 
     def _append_log(self, texto: str):

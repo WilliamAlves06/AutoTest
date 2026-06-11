@@ -89,7 +89,7 @@ class SuiteItem(ctk.CTkFrame):
 
     def __init__(self, master, nome: str, n_testes: int, cor: str, on_click: Callable):
         super().__init__(master, corner_radius=T.RADIUS_SM, fg_color="transparent",
-                         border_width=1, border_color=T.BG_PANEL)
+                         border_width=0, border_color=T.BLUE)
         self.nome = nome
         self._on_click = on_click
 
@@ -113,8 +113,8 @@ class SuiteItem(ctk.CTkFrame):
 
     def set_selected(self, sel: bool):
         if sel:
-            self.configure(fg_color=T.BG_SEL, border_color=T.BLUE)
+            self.configure(fg_color=T.BG_SEL, border_width=1)
             self._chevron.configure(text_color=T.BLUE)
         else:
-            self.configure(fg_color="transparent", border_color=T.BG_PANEL)
+            self.configure(fg_color="transparent", border_width=0)
             self._chevron.configure(text_color=T.TXT_MUTED)
