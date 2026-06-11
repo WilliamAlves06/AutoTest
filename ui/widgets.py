@@ -88,8 +88,8 @@ class SuiteItem(ctk.CTkFrame):
     """Linha de suíte: badge + nome + contagem + chevron, selecionável."""
 
     def __init__(self, master, nome: str, n_testes: int, cor: str, on_click: Callable):
-        super().__init__(master, corner_radius=T.RADIUS_SM, fg_color="transparent",
-                         border_width=0, border_color=T.BLUE)
+        super().__init__(master, corner_radius=T.RADIUS, fg_color="transparent",
+                         border_width=0)
         self.nome = nome
         self._on_click = on_click
 
@@ -111,9 +111,10 @@ class SuiteItem(ctk.CTkFrame):
         self._badge.bind("<Button-1>", lambda _e: self._on_click(self.nome))
 
     def set_selected(self, sel: bool):
+        # Card preenchido e arredondado (sem borda — evita o glitch de borda no scroll).
         if sel:
-            self.configure(fg_color=T.BG_SEL, border_width=1)
+            self.configure(fg_color=T.BG_SEL)
             self._chevron.configure(text_color=T.BLUE)
         else:
-            self.configure(fg_color="transparent", border_width=0)
+            self.configure(fg_color="transparent")
             self._chevron.configure(text_color=T.TXT_MUTED)
