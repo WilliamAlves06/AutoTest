@@ -93,8 +93,11 @@ class SuiteItem(ctk.CTkFrame):
         self.nome = nome
         self._on_click = on_click
 
-        self._badge = letter_badge(self, nome, cor, size=34)
-        self._badge.pack(side="left", padx=(10, 12), pady=10)
+        self._badge = letter_badge(self, nome, cor, size=32)
+        self._badge.pack(side="left", padx=(10, 12), pady=9)
+
+        self._chevron = ctk.CTkLabel(self, text="›", text_color=T.TXT_MUTED, font=T.font(18))
+        self._chevron.pack(side="right", padx=(6, 12))
 
         meio = ctk.CTkFrame(self, fg_color="transparent")
         meio.pack(side="left", fill="x", expand=True)
@@ -102,10 +105,6 @@ class SuiteItem(ctk.CTkFrame):
                      font=T.font(13, "bold"), anchor="w").pack(anchor="w")
         ctk.CTkLabel(meio, text=f"{n_testes} teste{'s' if n_testes != 1 else ''}",
                      text_color=T.TXT_MUTED, font=T.font(11), anchor="w").pack(anchor="w")
-
-        self._chevron = ctk.CTkLabel(self, text="›", text_color=T.TXT_MUTED,
-                                     font=T.font(18))
-        self._chevron.pack(side="right", padx=14)
 
         for w in (self, meio, self._chevron) + tuple(meio.winfo_children()):
             w.bind("<Button-1>", lambda _e: self._on_click(self.nome))

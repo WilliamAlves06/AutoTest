@@ -36,8 +36,11 @@ def main():
     app.mostrar("testes")
     try:
         dash = app._content.winfo_children()[0]
-        primeira = next(iter(dash._suites))
-        dash._select_suite(primeira)
+        # escolhe uma suíte com 2 testes e marca o primeiro (mostra clique no teste)
+        suite = next((s for s, v in dash._suites.items() if len(v) >= 2), next(iter(dash._suites)))
+        dash._select_suite(suite)
+        if dash._caminho_por_teste:
+            dash._toggle_teste(next(iter(dash._caminho_por_teste)))
     except Exception:
         pass
     _grab(app, "testes")

@@ -25,6 +25,17 @@ _ROOT = Path(__file__).resolve().parent.parent
 _CORES_SUITE = ["#3b82f6", "#a855f7", "#f59e0b", "#10b981", "#ef4444", "#06b6d4"]
 
 
+def _bind_click(widget, fn):
+    """Liga <Button-1> ao widget e a todos os descendentes (linha clicável inteira)."""
+    try:
+        widget.configure(cursor="hand2")
+    except Exception:
+        pass
+    widget.bind("<Button-1>", fn)
+    for filho in widget.winfo_children():
+        _bind_click(filho, fn)
+
+
 class DashboardTestes(ctk.CTkFrame):
     def __init__(self, master, config: dict):
         super().__init__(master, fg_color=T.BG_APP)
@@ -33,6 +44,8 @@ class DashboardTestes(ctk.CTkFrame):
         self._itens: dict[str, SuiteItem] = {}
         self._suite_sel: str | None = None
         self._resultados: list[dict] = []
+        self._sel_testes: set[str] = set()          # testes marcados (clique)
+        self._caminho_por_teste: dict[str, str] = {}  # nome -> caminho do script
         self._executando = False
         self._tab = "resumo"
 
@@ -200,27 +213,50 @@ class DashboardTestes(ctk.CTkFrame):
         for i, nome in enumerate(nomes):
             item = SuiteItem(self._lista_suites, nome, len(self._suites[nome]),
                              _CORES_SUITE[i % len(_CORES_SUITE)], self._select_suite)
-            item.pack(fill="x", pady=3, padx=4)
+            item.pack(fill="x", pady=2, padx=(2, 8))
             self._itens[nome] = item
             if nome == self._suite_sel:
                 item.set_selected(True)
 
     def _select_suite(self, nome: str):
         self._suite_sel = nome
+        self._sel_testes = set()
+        self._resultados = []   # troca de suíte limpa a tabela de resultados
+        self._caminho_por_teste = {
+            os.path.splitext(os.path.basename(c))[0]: c for c in self._suites.get(nome, [])
+        }
         for n, item in self._itens.items():
             item.set_selected(n == nome)
-        n = len(self._suites.get(nome, []))
-        self._lbl_info.configure(text=f"1 suíte selecionada · {n} teste{'s' if n != 1 else ''}",
-                                 text_color=T.TXT_DIM)
+        self._atualizar_info_selecao()
         self._set_tab("resumo")   # mostra os testes da suíte na tabela
+
+    def _atualizar_info_selecao(self):
+        n_sel = len(self._sel_testes)
+        if n_sel:
+            self._lbl_info.configure(
+                text=f"{n_sel} teste{'s' if n_sel != 1 else ''} selecionado{'s' if n_sel != 1 else ''}",
+                text_color=T.BLUE)
+        elif self._suite_sel:
+            n = len(self._suites.get(self._suite_sel, []))
+            self._lbl_info.configure(
+                text=f"1 suíte · {n} teste{'s' if n != 1 else ''} (todos)", text_color=T.TXT_DIM)
+        else:
+            self._lbl_info.configure(text="nenhuma suíte selecionada", text_color=T.TXT_MUTED)
+
+    def _toggle_teste(self, nome: str):
+        if nome in self._sel_testes:
+            self._sel_testes.discard(nome)
+        else:
+            self._sel_testes.add(nome)
+        self._atualizar_info_selecao()
+        self._render_tabela()
 
     def _testes_pendentes(self) -> list[dict]:
         """Linhas da suíte selecionada ainda não executadas (status '—')."""
         if not self._suite_sel:
             return []
-        return [{"nome": os.path.splitext(os.path.basename(c))[0],
-                 "modulo": self._suite_sel, "status": "—", "dur": None}
-                for c in self._suites.get(self._suite_sel, [])]
+        return [{"nome": n, "modulo": self._suite_sel, "status": "—", "dur": None}
+                for n in self._caminho_por_teste]
 
     # ── EXECUÇÃO ─────────────────────────────────────────────────
     def _executar_selecionados(self):
@@ -229,7 +265,12 @@ class DashboardTestes(ctk.CTkFrame):
         if not self._suite_sel:
             self._lbl_info.configure(text="selecione uma suíte primeiro", text_color=T.RED)
             return
-        self._rodar(self._suites.get(self._suite_sel, []), self._suite_sel)
+        if self._sel_testes:
+            scripts = [self._caminho_por_teste[n] for n in self._sel_testes
+                       if n in self._caminho_por_teste]
+        else:
+            scripts = self._suites.get(self._suite_sel, [])   # nenhum marcado = todos da suíte
+        self._rodar(scripts, self._suite_sel)
 
     def _executar_todos(self):
         if self._executando:
@@ -327,12 +368,14 @@ class DashboardTestes(ctk.CTkFrame):
             ctk.CTkLabel(head, text=txt, text_color=T.TXT_MUTED, font=T.font(10, "bold"),
                          width=w, anchor="w").pack(side="left")
 
+        pendente = False
         if self._tab == "falhas":
             linhas = [r for r in self._resultados if r["status"] == "FAIL"]
         elif self._resultados:
             linhas = self._resultados
         else:
             linhas = self._testes_pendentes()   # suíte selecionada, ainda não rodada
+            pendente = True
 
         if not linhas:
             msg = ("Selecione uma suíte para ver os testes."
@@ -341,21 +384,32 @@ class DashboardTestes(ctk.CTkFrame):
                          font=T.font(12)).pack(anchor="w", pady=16)
             return
 
+        if pendente:
+            ctk.CTkLabel(self._tabela, text="Clique para marcar os testes (vazio = roda todos).",
+                         text_color=T.TXT_MUTED, font=T.font(10)).pack(anchor="w", pady=(0, 4))
+
         for r in linhas:
-            row = ctk.CTkFrame(self._tabela, fg_color="transparent")
-            row.pack(fill="x", pady=2)
-            cel = ctk.CTkFrame(row, fg_color="transparent", width=90, height=26)
-            cel.pack(side="left")
+            marcado = pendente and r["nome"] in self._sel_testes
+            row = ctk.CTkFrame(self._tabela, corner_radius=T.RADIUS_SM,
+                               fg_color=T.BLUE_TINT if marcado else "transparent")
+            row.pack(fill="x", pady=1)
+
+            cel = ctk.CTkFrame(row, fg_color="transparent", width=92, height=28)
+            cel.pack(side="left", padx=(6, 0))
             cel.pack_propagate(False)
             rotulo = {"PASS": "PASS", "FAIL": "FAIL"}.get(r["status"], "pendente")
-            pill(cel, rotulo, r["status"]).pack(side="left")
-            ctk.CTkLabel(row, text=r["nome"], text_color=T.TXT, font=T.font(12),
-                         width=240, anchor="w").pack(side="left")
+            pill(cel, rotulo, r["status"]).pack(side="left", pady=4)
+            cor_nome = T.BLUE if marcado else T.TXT
+            ctk.CTkLabel(row, text=r["nome"], text_color=cor_nome, font=T.font(12),
+                         width=238, anchor="w").pack(side="left")
             ctk.CTkLabel(row, text=r["modulo"], text_color=T.TXT_DIM, font=T.font(12),
                          width=130, anchor="w").pack(side="left")
             dur = f"{r['dur']:.1f}s" if r.get("dur") is not None else "—"
             ctk.CTkLabel(row, text=dur, text_color=T.TXT_DIM, font=T.font(12),
                          width=90, anchor="w").pack(side="left")
+
+            if pendente:
+                _bind_click(row, lambda _e, n=r["nome"]: self._toggle_teste(n))
 
     def _append_log(self, texto: str):
         self._log.configure(state="normal")
