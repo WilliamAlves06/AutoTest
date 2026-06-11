@@ -54,6 +54,7 @@ class DetectedAction:
     key:           Optional[str] = None
     process_name:  Optional[str] = None
     window_title:  Optional[str] = None
+    assert_kind:   Optional[str] = None   # "visible" | "text" | "value" (action_type=="assert")
     timestamp:     float = field(default_factory=time.time)
     resolved:      bool = True
     _x:            Optional[int] = field(default=None, repr=False)
@@ -87,6 +88,13 @@ class DetectedAction:
                 f"      safe_click({self.element.to_wait_element_call()})"
             )
 
+        if self.action_type == "assert":
+            alvo = (self.element.to_autoit_string()
+                    if self.element and self.element.is_resolved() else "elemento")
+            if self.assert_kind == "visible":
+                return f"{prefix}assert visivel: {alvo}"
+            return f'{prefix}assert {self.assert_kind}: {alvo} == "{self._escape(self.text or "")}"'
+
         return f"{prefix}# acao: {self.action_type}"
 
     @staticmethod
@@ -115,6 +123,7 @@ class ActionDetector:
         self._last_special_key: Optional[str] = None
         self._last_special_time: float = 0.0
         self._hook_ok = False
+        self._armed_assert: Optional[str] = None   # "visible"|"text"|"value" quando armado
 
     def start(self, callback: Optional[Callable[[DetectedAction], None]] = None) -> None:
         if self._running:
@@ -162,6 +171,17 @@ class ActionDetector:
 
     def is_running(self) -> bool:
         return self._running
+
+    # ── modo "assert" (estilo Playwright: arma o tipo, próximo clique = verificação) ──
+    def arm_assertion(self, kind: str) -> None:
+        """Arma uma verificação: o PRÓXIMO clique vira um assert (visible/text/value)."""
+        self._armed_assert = kind
+
+    def disarm_assertion(self) -> None:
+        self._armed_assert = None
+
+    def assertion_armed(self) -> Optional[str]:
+        return self._armed_assert
 
     def drain_queue(self) -> list[DetectedAction]:
         """Remove e retorna todas as acoes pendentes (chamar na thread do Tk)."""
@@ -265,14 +285,30 @@ class ActionDetector:
         self._maybe_emit_process_change(process_name)
 
         info = None
+        valor = None
         if window is not None:
             try:
                 element = window.from_point(x, y)
                 info = self._locator.resolve(window, element)
+                if self._armed_assert:
+                    valor = self._ler_valor(element)
             except Exception:
                 info = ElementInfo(process_name=process_name, strategy_used="failed")
 
         resolved = info is not None and info.is_resolved()
+
+        # Modo assert: o clique vira uma verificação, não uma ação.
+        kind = self._armed_assert
+        if kind:
+            self._armed_assert = None
+            self._enqueue(DetectedAction(
+                action_type="assert", assert_kind=kind, element=info, text=valor,
+                process_name=process_name,
+                window_title=info.window_title if info else None,
+                timestamp=time.time(), resolved=resolved, _x=x, _y=y,
+            ))
+            return
+
         action = DetectedAction(
             action_type="click",
             element=info,
@@ -284,6 +320,22 @@ class ActionDetector:
             _y=y,
         )
         self._enqueue(action)
+
+    @staticmethod
+    def _ler_valor(element) -> Optional[str]:
+        """Lê o valor/texto atual do elemento (para o assert de text/value)."""
+        for getter in ("get_value", "window_text"):
+            try:
+                v = getattr(element, getter)()
+                if v not in (None, ""):
+                    return str(v).strip()
+            except Exception:
+                continue
+        try:
+            v = element.legacy_properties().get("Value")
+            return str(v).strip() if v else None
+        except Exception:
+            return None
 
     def _resolve_window_by_point(self, x: int, y: int):
         try:

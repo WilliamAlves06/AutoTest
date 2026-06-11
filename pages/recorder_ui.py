@@ -67,6 +67,7 @@ class RecorderTab(tk.Frame):
         self._drain_job    = None
 
         self._build_header()
+        self._build_assert_bar()
         self._build_panel()
         self._build_footer()
 
@@ -122,7 +123,7 @@ class RecorderTab(tk.Frame):
         tk.Checkbutton(
             hdr, text="DSL fc (aliases)", variable=self._usar_fc,
             bg=C_WHITE, fg="#444", font=C_FONT, activebackground=C_WHITE,
-            selectcolor=C_WHITE, cursor="hand2",
+            selectcolor=C_BLUE, cursor="hand2", command=self._on_toggle_fc,
         ).pack(side="left", padx=8)
 
         # Status
@@ -131,6 +132,56 @@ class RecorderTab(tk.Frame):
             font=("Segoe UI", 10, "bold"), fg="#999999"
         )
         self.lbl_status.pack(side="right", padx=16)
+
+    def _build_assert_bar(self):
+        """Toolbar de verificações (estilo Playwright: tipo + clique no elemento)."""
+        bar = tk.Frame(self, bg=C_WHITE)
+        bar.pack(fill="x")
+        tk.Label(bar, text="Verificações:", bg=C_WHITE, fg="#444",
+                 font=("Segoe UI", 9, "bold")).pack(side="left", padx=(12, 6), pady=6)
+        for kind, rotulo in (("visible", "✓ visível"), ("text", "✓ texto"), ("value", "✓ valor")):
+            tk.Button(bar, text=rotulo, bg="#eef2ff", fg=C_BLUE, relief="flat",
+                      font=("Segoe UI", 9), padx=8, pady=3, cursor="hand2",
+                      command=lambda k=kind: self._armar_assert(k)).pack(side="left", padx=3)
+        self._assert_hint = tk.Label(
+            bar, text="clique num tipo e depois no elemento na tela",
+            bg=C_WHITE, fg="#999", font=("Segoe UI", 9))
+        self._assert_hint.pack(side="left", padx=10)
+
+    def _armar_assert(self, kind: str):
+        if not self._detector.is_running():
+            self._assert_hint.config(text="Inicie a gravação antes de adicionar verificação.", fg=C_RED)
+            return
+        if not self._usar_fc.get():
+            self._usar_fc.set(True)   # verificações só geram código no modo DSL fc
+        self._detector.arm_assertion(kind)
+        rot = {"visible": "visível", "text": "texto", "value": "valor"}[kind]
+        self._assert_hint.config(text=f"🎯 agora CLIQUE no elemento para verificar ({rot})...", fg=C_GREEN)
+
+    def _on_toggle_fc(self):
+        """Re-renderiza o painel ao alternar entre DSL fc e legado."""
+        self.panel.config(state="normal")
+        self.panel.delete("1.0", tk.END)
+        self.panel.config(state="disabled")
+        if self._usar_fc.get():
+            self._render_codigo_live()
+        else:
+            self._action_count = 0
+            for a in self._actions:
+                self._render_action(a)
+
+    def _render_codigo_live(self):
+        """Mostra o teste fc gerado AO VIVO (regenera a cada ação, estilo codegen)."""
+        nome = self.entry_name.get().strip() or "Teste_Gravado"
+        try:
+            codigo = self._fc_codegen.generate(self._actions, nome)
+        except Exception as e:  # noqa: BLE001
+            codigo = f"# erro ao gerar codigo: {e}"
+        self.panel.config(state="normal")
+        self.panel.delete("1.0", tk.END)
+        self.panel.insert(tk.END, codigo, "normal")
+        self.panel.see(tk.END)
+        self.panel.config(state="disabled")
 
     def _build_panel(self):
         """Painel central estilo Cypress — lista de comandos em tempo real."""
@@ -307,7 +358,17 @@ class RecorderTab(tk.Frame):
 
     def _handle_action(self, action: DetectedAction):
         self._actions.append(action)
-        self._render_action(action)
+        if action.action_type == "assert":
+            self._assert_hint.config(text="✓ verificação adicionada", fg=C_BLUE)
+        if self._usar_fc.get():
+            self._render_codigo_live()
+        else:
+            self._render_action(action)
+        self._atualizar_contador()
+
+    def _atualizar_contador(self):
+        n = len([a for a in self._actions if a.action_type != "process_changed"])
+        self.lbl_count.config(text=f"{n} ação{'ões' if n != 1 else ''} gravada{'s' if n != 1 else ''}")
 
     def _render_action(self, action: DetectedAction):
         """Atualiza o painel na thread principal do Tkinter."""

@@ -80,6 +80,16 @@ class Field(_Elemento):
         logger.success(f"✓ should_have_value: '{self.alias}' = '{esperado}'")
         return self
 
+    def should_have_text(self, esperado: str):
+        """Igual a should_have_value para campos Delphi (texto == valor do edit)."""
+        obtido = self.get_value()
+        if _norm(obtido) != _norm(esperado):
+            raise AssertionError(
+                f"Campo '{self.alias}': texto esperado '{esperado}', obtido '{obtido}'"
+            )
+        logger.success(f"✓ should_have_text: '{self.alias}' = '{esperado}'")
+        return self
+
 
 class Button(_Elemento):
     def click(self):

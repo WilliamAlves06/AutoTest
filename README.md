@@ -317,6 +317,15 @@ backend `pynput`+Win32) e, na exportação, gera um teste **já na DSL `fc`**:
   alias-map do módulo (casando por `automation_id` ou `class+índice`) e, quando o campo é novo,
   **cria um alias e o registra no mapping** (merge, sem sobrescrever os existentes).
 
+Adaptando a lógica do **codegen do Playwright** ao desktop:
+
+- **Código ao vivo** — com "DSL fc" ligado, o painel mostra o teste `fc` sendo gerado
+  **enquanto você interage** (regenera a cada ação), não só no Export.
+- **Verificações (assertions)** — a toolbar *Verificações* tem `✓ visível` / `✓ texto` /
+  `✓ valor`: clique no tipo e depois **no elemento na tela** → gera
+  `fc.field("alias").should_be_visible()` / `.should_have_text(...)` / `.should_have_value(...)`
+  (lê o valor atual do campo no momento do clique).
+
 > É o análogo ao *codegen* do Playwright: em vez de coordenadas, sai código legível por alias —
 > e o mapeamento cresce sozinho conforme você grava. Toggle **"DSL fc"** liga/desliga (o formato
 > legado `wait_element` continua disponível).

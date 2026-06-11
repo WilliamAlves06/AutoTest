@@ -141,6 +141,12 @@ class FCCodeGenerator:
                 linhas.append(self._linha_click(resolver, action))
                 continue
 
+            if tipo == "assert":
+                if modulo_atual is None:
+                    continue
+                linhas.append(self._linha_assert(resolver, action))
+                continue
+
             if tipo == "special_key":
                 if pular_proximo_enter and action.key == "{ENTER}":
                     pular_proximo_enter = False
@@ -175,6 +181,16 @@ class FCCodeGenerator:
         if self._parece_botao(action.element):
             return f'fc.button("{alias}").click()'
         return f'fc.button("{alias}").click()  # confirme: clique em campo, não botão'
+
+    def _linha_assert(self, resolver, action: DetectedAction) -> str:
+        alias = self._alias(resolver, action)
+        if alias is None:
+            return "# verificação em elemento não identificado — mapear manualmente"
+        if action.assert_kind == "visible":
+            return f'fc.field("{alias}").should_be_visible()'
+        if action.assert_kind == "text":
+            return f'fc.field("{alias}").should_have_text("{self._q(action.text or "")}")'
+        return f'fc.field("{alias}").should_have_value("{self._q(action.text or "")}")'
 
     def _alias(self, resolver: Optional[AliasResolver], action: DetectedAction) -> Optional[str]:
         if resolver is None or action.element is None or not action.element.is_resolved():

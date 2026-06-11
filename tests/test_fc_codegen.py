@@ -88,3 +88,19 @@ def test_inclui_todo_de_validacao_no_banco():
     code = FCCodeGenerator().generate([], "vazio")
     assert "assert_saved" in code
     compile(code, "<gerado>", "exec")
+
+
+def test_gera_assertions_should():
+    gen = FCCodeGenerator()
+    campo = _ei(automation_id="854414", class_name="TDBEdit", process_name="FCFiliais.exe")
+    existentes = {"FCFiliais": {"Razao_Social": {"alias": "Razao_Social", "automation_id": "854414"}}}
+    actions = [
+        _act("assert", element=campo, assert_kind="value", text="VITACORPUS", process_name="FCFiliais.exe"),
+        _act("assert", element=campo, assert_kind="visible", process_name="FCFiliais.exe"),
+        _act("assert", element=campo, assert_kind="text", text="ACME", process_name="FCFiliais.exe"),
+    ]
+    code = gen.generate(actions, "verif", aliases_por_modulo=existentes)
+    assert 'fc.field("Razao_Social").should_have_value("VITACORPUS")' in code
+    assert 'fc.field("Razao_Social").should_be_visible()' in code
+    assert 'fc.field("Razao_Social").should_have_text("ACME")' in code
+    compile(code, "<gerado>", "exec")
