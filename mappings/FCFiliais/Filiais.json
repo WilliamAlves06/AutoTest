@@ -321,27 +321,6 @@
       "instance": 40
     },
     {
-      "alias": "0_11",
-      "title": "0/11",
-      "control_type": "Text",
-      "found_index": 1,
-      "instance": 43
-    },
-    {
-      "alias": "consulta",
-      "title": "Consulta",
-      "control_type": "Text",
-      "found_index": 2,
-      "instance": 44
-    },
-    {
-      "alias": "bd_6_0_70",
-      "title": "BD: 6.0.70",
-      "control_type": "Text",
-      "found_index": 3,
-      "instance": 45
-    },
-    {
       "alias": "pag_Web_Endereço",
       "automation_id": "462870",
       "class_name": "TDBEdit",

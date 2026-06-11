@@ -72,3 +72,27 @@ def test_alias_novo_a_partir_do_titulo_e_unico():
     r = AliasResolver("FCFiliais", existentes={"consultar": {"alias": "consultar", "automation_id": "1"}})
     alias = r.alias_para(_ei(title="Consultar", class_name="TFagronButton"))
     assert alias == "consultar_2"       # 'consultar' já existe -> sufixo
+
+
+# ── escolha do elemento clicado (from_point x foco) ──────────────────────────
+def test_clique_em_campo_prefere_foco_sobre_from_point_vizinho():
+    from core.recorder.action_detector import ActionDetector
+    # from_point caiu no vizinho (Complemento); o foco é o campo certo (Filial).
+    vizinho = _ei(automation_id="919938", class_name="TDBEdit", control_type="Edit")
+    focado = _ei(automation_id="658194", class_name="TDBEdit", control_type="Edit")
+    assert ActionDetector._escolher_clicado(vizinho, focado) == "foco"
+
+
+def test_clique_em_botao_mantem_from_point():
+    from core.recorder.action_detector import ActionDetector
+    # Botão pelo ponto vence — botão nem sempre recebe foco (foco fica no edit anterior).
+    botao = _ei(title="Salvar", class_name="TcxButton", control_type="Button")
+    edit_focado = _ei(automation_id="658194", class_name="TDBEdit", control_type="Edit")
+    assert ActionDetector._escolher_clicado(botao, edit_focado) == "point"
+
+
+def test_clique_sem_foco_resolvido_cai_no_from_point():
+    from core.recorder.action_detector import ActionDetector
+    campo = _ei(automation_id="658194", class_name="TDBEdit", control_type="Edit")
+    sem_foco = ElementInfo(strategy_used="failed")
+    assert ActionDetector._escolher_clicado(campo, sem_foco) == "point"
