@@ -73,15 +73,25 @@ class AliasResolver:
                 self._existentes = {}
         self.novos: dict[str, dict] = {}   # alias -> {alias, ...localizador} a persistir
 
+    def alias_existente(self, info) -> Optional[str]:
+        """Devolve o alias se o elemento casar um já conhecido — SEM criar um novo."""
+        loc = info_para_localizador(info)
+        if not loc:
+            return None
+        for alias, registro in {**self._existentes, **self.novos}.items():
+            if casa(loc, registro):
+                return alias
+        return None
+
     def alias_para(self, info) -> Optional[str]:
         """Devolve o alias do elemento — existente ou recém-criado. None se irreconhecível."""
         loc = info_para_localizador(info)
         if not loc:
             return None
 
-        for alias, registro in {**self._existentes, **self.novos}.items():
-            if casa(loc, registro):
-                return alias
+        existente = self.alias_existente(info)
+        if existente:
+            return existente
 
         alias = self._nome_novo(loc)
         self.novos[alias] = {"alias": alias, **loc}

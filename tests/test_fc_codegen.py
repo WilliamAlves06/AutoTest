@@ -104,6 +104,25 @@ def test_clique_em_campo_mais_type_vira_field_type():
     assert "fc.field(" in code
 
 
+def test_merge_prefere_campo_focado_e_alias_existente():
+    # Cenário real: o clique caiu no campo vizinho (Complemento), mas o foco da
+    # digitação era o Filial -> deve gerar fc.field("Filial").
+    gen = FCCodeGenerator()
+    existentes = {"FCFiliais": {
+        "Filial": {"alias": "Filial", "automation_id": "658194", "class_name": "TDBEdit"},
+        "Complemento": {"alias": "Complemento", "automation_id": "111", "class_name": "TDBEdit"},
+    }}
+    click_elem = _ei(automation_id="111", class_name="TDBEdit", process_name="FCFiliais.exe")
+    foco_elem = _ei(automation_id="658194", class_name="TDBEdit", process_name="FCFiliais.exe")
+    actions = [
+        _act("click", element=click_elem, process_name="FCFiliais.exe", resolved=True),
+        _act("type", element=foco_elem, text="teste", process_name="FCFiliais.exe"),
+    ]
+    code = gen.generate(actions, "x", aliases_por_modulo=existentes)
+    assert 'fc.field("Filial").type("teste")' in code
+    assert "Complemento" not in code
+
+
 def test_clique_em_campo_sem_type_vira_field_click():
     gen = FCCodeGenerator()
     campo = _ei(automation_id="222", class_name="TwwDBEdit", control_type="Edit",

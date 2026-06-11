@@ -109,7 +109,7 @@ class FCCodeGenerator:
         modulo_atual: Optional[str] = None
         resolver: Optional[AliasResolver] = None
         pular_proximo_enter = False
-        campo_pendente: Optional[str] = None   # alias do campo clicado, p/ mesclar com o type
+        campo_pendente_info = None   # ElementInfo do campo clicado, p/ mesclar com o type
 
         for i, action in enumerate(actions):
             modulo = self._modulo_de(action.process_name)
@@ -126,16 +126,17 @@ class FCCodeGenerator:
 
             if tipo == "type":
                 if modulo_atual is None:
-                    campo_pendente = None
+                    campo_pendente_info = None
                     continue  # campo de login — coberto por fc.login()
                 seguido_de_enter = (
                     i + 1 < len(actions)
                     and actions[i + 1].action_type == "special_key"
                     and actions[i + 1].key == "{ENTER}"
                 )
-                linhas.append(self._linha_type(resolver, action, seguido_de_enter,
-                                               alias_override=campo_pendente))
-                campo_pendente = None
+                # Prefere o campo FOCADO na digitação (verdade) ao clique (pode cair no vizinho).
+                alias = self._resolver_campo(resolver, action.element, campo_pendente_info)
+                campo_pendente_info = None
+                linhas.append(self._linha_type_alias(alias, action.text, seguido_de_enter))
                 pular_proximo_enter = seguido_de_enter
                 continue
 
@@ -143,11 +144,11 @@ class FCCodeGenerator:
                 if modulo_atual is None:
                     continue
                 if self._parece_campo(action.element):
-                    alias = self._alias(resolver, action)
                     prox = actions[i + 1] if i + 1 < len(actions) else None
                     if prox is not None and prox.action_type == "type":
-                        campo_pendente = alias   # o type a seguir vira fc.field(alias).type(...)
+                        campo_pendente_info = action.element   # mescla com o type a seguir
                         continue
+                    alias = self._alias(resolver, action)
                     linhas.append(f'fc.field("{alias}").click()' if alias
                                   else "# clique em campo não identificado — mapear manualmente")
                 else:
@@ -175,14 +176,30 @@ class FCCodeGenerator:
         linhas.append("# fc.db.assert_saved(query=\"<sql>\", params={...}, expected={...})")
         return linhas
 
-    def _linha_type(self, resolver, action: DetectedAction, com_enter: bool,
-                    alias_override: Optional[str] = None) -> str:
-        texto = self._q(action.text or "")
-        # Prefere o campo clicado logo antes (mais confiável que o foco no momento do flush).
-        alias = alias_override if alias_override else self._alias(resolver, action)
+    def _resolver_campo(self, resolver, elem_foco, elem_clique) -> Optional[str]:
+        """Alias do campo digitado. Prioridade:
+        1) elemento FOCADO (onde o texto foi) que casa um alias EXISTENTE;
+        2) elemento do CLIQUE que casa um alias existente;
+        3) cria alias novo a partir do foco (senão do clique).
+        """
+        if resolver is None:
+            return None
+        candidatos = [e for e in (elem_foco, elem_clique) if e is not None and e.is_resolved()]
+        for elem in candidatos:
+            a = resolver.alias_existente(elem)
+            if a:
+                return a
+        for elem in candidatos:
+            a = resolver.alias_para(elem)
+            if a:
+                return a
+        return None
+
+    def _linha_type_alias(self, alias: Optional[str], texto: Optional[str], com_enter: bool) -> str:
+        t = self._q(texto or "")
         if alias is None:
-            return f'# digitou "{texto}" (campo não identificado — mapear manualmente)'
-        chamada = f'fc.field("{alias}").type("{texto}")'
+            return f'# digitou "{t}" (campo não identificado — mapear manualmente)'
+        chamada = f'fc.field("{alias}").type("{t}")'
         if com_enter:
             chamada += '.press("{ENTER}")'
         return chamada
