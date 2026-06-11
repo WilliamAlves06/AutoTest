@@ -44,6 +44,15 @@ def test_cria_alias_novo_quando_desconhecido():
     assert r.novos[alias]["found_index"] == 5
 
 
+def test_filtro_fcerta():
+    from core.recorder.action_detector import ActionDetector
+    assert ActionDetector._eh_fcerta("FCFiliais.exe")
+    assert ActionDetector._eh_fcerta("fcerta.exe")
+    assert not ActionDetector._eh_fcerta("python.exe")
+    assert not ActionDetector._eh_fcerta("Code.exe")
+    assert not ActionDetector._eh_fcerta(None)
+
+
 def test_alias_novo_a_partir_do_titulo_e_unico():
     r = AliasResolver("FCFiliais", existentes={"consultar": {"alias": "consultar", "automation_id": "1"}})
     alias = r.alias_para(_ei(title="Consultar", class_name="TFagronButton"))

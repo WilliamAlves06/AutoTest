@@ -90,6 +90,37 @@ def test_inclui_todo_de_validacao_no_banco():
     compile(code, "<gerado>", "exec")
 
 
+def test_clique_em_campo_mais_type_vira_field_type():
+    gen = FCCodeGenerator()
+    campo = _ei(automation_id="111", class_name="TwwDBEdit", control_type="Edit",
+                process_name="FCFiliais.exe")
+    actions = [
+        _act("click", element=campo, process_name="FCFiliais.exe", resolved=True),
+        _act("type", element=campo, text="10", process_name="FCFiliais.exe"),
+    ]
+    code = gen.generate(actions, "x", aliases_por_modulo={"FCFiliais": {}})
+    assert "fc.button(" not in code              # campo não vira botão
+    assert code.count('.type("10")') == 1        # clique absorvido pelo type
+    assert "fc.field(" in code
+
+
+def test_clique_em_campo_sem_type_vira_field_click():
+    gen = FCCodeGenerator()
+    campo = _ei(automation_id="222", class_name="TwwDBEdit", control_type="Edit",
+                process_name="FCFiliais.exe")
+    actions = [_act("click", element=campo, process_name="FCFiliais.exe", resolved=True)]
+    code = gen.generate(actions, "x", aliases_por_modulo={"FCFiliais": {}})
+    assert "fc.field(" in code and ".click()" in code
+    assert "fc.button(" not in code
+
+
+def test_processo_nao_fcerta_nao_vira_open_module():
+    assert FCCodeGenerator._modulo_de("python.exe") is None
+    assert FCCodeGenerator._modulo_de("Code.exe") is None
+    assert FCCodeGenerator._modulo_de("fcerta.exe") is None
+    assert FCCodeGenerator._modulo_de("FCFiliais.exe") == "FCFiliais"
+
+
 def test_gera_assertions_should():
     gen = FCCodeGenerator()
     campo = _ei(automation_id="854414", class_name="TDBEdit", process_name="FCFiliais.exe")

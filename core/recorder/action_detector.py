@@ -282,6 +282,10 @@ class ActionDetector:
         if window is None and WIN32_AVAILABLE and PYWINAUTO_AVAILABLE:
             window, process_name = self._resolve_window_foreground()
 
+        # Ignora cliques fora do Formula Certa (recorder, IDE, explorer, etc.).
+        if process_name and not self._eh_fcerta(process_name):
+            return
+
         self._maybe_emit_process_change(process_name)
 
         info = None
@@ -320,6 +324,14 @@ class ActionDetector:
             _y=y,
         )
         self._enqueue(action)
+
+    @staticmethod
+    def _eh_fcerta(process_name: Optional[str]) -> bool:
+        """True se o processo é do Formula Certa (fcerta.exe ou módulos FC*.exe)."""
+        if not process_name:
+            return False
+        p = process_name.lower()
+        return p.startswith("fc") and p.endswith(".exe")
 
     @staticmethod
     def _ler_valor(element) -> Optional[str]:
@@ -420,6 +432,9 @@ class ActionDetector:
             timestamp=time.time(),
         )
         self._attach_foreground_context(action)
+        # Ignora digitação fora do Formula Certa (ex.: campo "Nome" do recorder).
+        if action.process_name and not self._eh_fcerta(action.process_name):
+            return
         if action.element and action.element.is_resolved():
             action.resolved = True
         self._enqueue(action)

@@ -109,6 +109,7 @@ class FCCodeGenerator:
         modulo_atual: Optional[str] = None
         resolver: Optional[AliasResolver] = None
         pular_proximo_enter = False
+        campo_pendente: Optional[str] = None   # alias do campo clicado, p/ mesclar com o type
 
         for i, action in enumerate(actions):
             modulo = self._modulo_de(action.process_name)
@@ -125,20 +126,32 @@ class FCCodeGenerator:
 
             if tipo == "type":
                 if modulo_atual is None:
+                    campo_pendente = None
                     continue  # campo de login — coberto por fc.login()
                 seguido_de_enter = (
                     i + 1 < len(actions)
                     and actions[i + 1].action_type == "special_key"
                     and actions[i + 1].key == "{ENTER}"
                 )
-                linhas.append(self._linha_type(resolver, action, seguido_de_enter))
+                linhas.append(self._linha_type(resolver, action, seguido_de_enter,
+                                               alias_override=campo_pendente))
+                campo_pendente = None
                 pular_proximo_enter = seguido_de_enter
                 continue
 
             if tipo == "click":
                 if modulo_atual is None:
                     continue
-                linhas.append(self._linha_click(resolver, action))
+                if self._parece_campo(action.element):
+                    alias = self._alias(resolver, action)
+                    prox = actions[i + 1] if i + 1 < len(actions) else None
+                    if prox is not None and prox.action_type == "type":
+                        campo_pendente = alias   # o type a seguir vira fc.field(alias).type(...)
+                        continue
+                    linhas.append(f'fc.field("{alias}").click()' if alias
+                                  else "# clique em campo não identificado — mapear manualmente")
+                else:
+                    linhas.append(self._linha_click(resolver, action))
                 continue
 
             if tipo == "assert":
@@ -162,9 +175,11 @@ class FCCodeGenerator:
         linhas.append("# fc.db.assert_saved(query=\"<sql>\", params={...}, expected={...})")
         return linhas
 
-    def _linha_type(self, resolver, action: DetectedAction, com_enter: bool) -> str:
+    def _linha_type(self, resolver, action: DetectedAction, com_enter: bool,
+                    alias_override: Optional[str] = None) -> str:
         texto = self._q(action.text or "")
-        alias = self._alias(resolver, action)
+        # Prefere o campo clicado logo antes (mais confiável que o foco no momento do flush).
+        alias = alias_override if alias_override else self._alias(resolver, action)
         if alias is None:
             return f'# digitou "{texto}" (campo não identificado — mapear manualmente)'
         chamada = f'fc.field("{alias}").type("{texto}")'
@@ -256,14 +271,25 @@ if __name__ == "__main__":
         if not process_name:
             return None
         base = process_name[:-4] if process_name.lower().endswith(".exe") else process_name
-        if base.lower() in ("fcerta",):
+        low = base.lower()
+        if low == "fcerta":
             return None
+        if not low.startswith("fc"):
+            return None   # ignora processos que não são módulos do Fcerta (python, code, ...)
         return base
 
     @staticmethod
     def _parece_botao(info) -> bool:
         alvo = f"{getattr(info, 'class_name', '') or ''} {getattr(info, 'control_type', '') or ''}".lower()
         return any(b in alvo for b in _BOTOES)
+
+    @staticmethod
+    def _parece_campo(info) -> bool:
+        """True se o elemento é um campo de entrada (Edit/Combo/Memo/etc.)."""
+        if info is None:
+            return False
+        alvo = f"{getattr(info, 'class_name', '') or ''} {getattr(info, 'control_type', '') or ''}".lower()
+        return any(k in alvo for k in ("edit", "combo", "memo", "spin", "date"))
 
     @staticmethod
     def _q(text: str) -> str:

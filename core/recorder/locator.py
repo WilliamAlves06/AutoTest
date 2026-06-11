@@ -210,9 +210,16 @@ class ElementLocator:
             return None
 
     def resolve(self, window, element) -> ElementInfo:
-        """Tenta estratégias em ordem. Sempre retorna ElementInfo."""
-        class_name = self._safe_class(element)
+        """Tenta estratégias em ordem. Sempre retorna ElementInfo.
 
+        1º tenta capturar o `automation_id` — é o que casa com o alias-map já
+        curado (mappings/<Módulo>/*.json) e evita inventar nomes pelo rótulo errado.
+        """
+        info = self.find_by_automation_id(window, element)
+        if info:
+            return info
+
+        class_name = self._safe_class(element)
         if class_name in self._CLASSES_SEM_TITULO or class_name:
             info = self.find_by_class_instance(window, element)
             if info:

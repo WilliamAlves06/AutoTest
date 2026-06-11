@@ -46,6 +46,11 @@ class _Elemento:
 
 
 class Field(_Elemento):
+    def click(self):
+        el = self._resolver()
+        safe_click(el, label=f"campo {self.alias}")
+        return self
+
     def type(self, texto: str):
         el = self._resolver()
         el.set_focus()
