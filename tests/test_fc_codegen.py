@@ -114,6 +114,17 @@ def test_clique_em_campo_sem_type_vira_field_click():
     assert "fc.button(" not in code
 
 
+def test_clique_botao_owner_drawn_resolve_alias_mapeado():
+    gen = FCCodeGenerator()
+    btn = _ei(title="Incluir", control_type="Button", strategy_used="control_title",
+              process_name="FCFiliais.exe")
+    existentes = {"FCFiliais": {"incluir": {"alias": "incluir", "title": "Incluir",
+                                            "control_type": "Button"}}}
+    actions = [_act("click", element=btn, process_name="FCFiliais.exe", resolved=True)]
+    code = gen.generate(actions, "x", aliases_por_modulo=existentes)
+    assert 'fc.button("incluir").click()' in code
+
+
 def test_processo_nao_fcerta_nao_vira_open_module():
     assert FCCodeGenerator._modulo_de("python.exe") is None
     assert FCCodeGenerator._modulo_de("Code.exe") is None

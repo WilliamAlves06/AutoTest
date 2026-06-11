@@ -44,6 +44,21 @@ def test_cria_alias_novo_quando_desconhecido():
     assert r.novos[alias]["found_index"] == 5
 
 
+def test_casa_botao_owner_drawn_por_control_type_e_titulo():
+    rec = {"title": "Incluir", "control_type": "Button"}
+    mapeado = {"title": "Incluir", "control_type": "Button", "found_index": 0, "instance": 35}
+    assert casa(rec, mapeado)
+
+
+def test_reusa_alias_de_botao_sem_class_name():
+    existentes = {"incluir": {"alias": "incluir", "title": "Incluir",
+                              "control_type": "Button", "found_index": 0}}
+    r = AliasResolver("FCFiliais", existentes=existentes)
+    alias = r.alias_para(_ei(title="Incluir", control_type="Button", strategy_used="control_title"))
+    assert alias == "incluir"
+    assert r.novos == {}
+
+
 def test_filtro_fcerta():
     from core.recorder.action_detector import ActionDetector
     assert ActionDetector._eh_fcerta("FCFiliais.exe")

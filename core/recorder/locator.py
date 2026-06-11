@@ -176,6 +176,27 @@ class ElementLocator:
         except Exception:
             return None
 
+    def find_by_control_type_and_title(self, window, element) -> Optional[ElementInfo]:
+        """Resolve por control_type + título — para botões owner-drawn (DevExpress)
+        sem class_name/handle, ex.: a barra Incluir/Alterar/Consultar do Formula Certa."""
+        try:
+            title = self._safe_title(element)
+            control_type = self._safe_control_type(element)
+            if not title or not control_type:
+                return None
+            process_name, window_title, window_class = self._get_context(window)
+            return ElementInfo(
+                title=title,
+                control_type=control_type,
+                class_name=self._safe_class(element),   # pode ser None
+                window_class=window_class,
+                process_name=process_name,
+                window_title=window_title,
+                strategy_used="control_title",
+            )
+        except Exception:
+            return None
+
     def find_by_class_index(self, window, element) -> Optional[ElementInfo]:
         try:
             class_name = self._safe_class(element)
@@ -228,6 +249,7 @@ class ElementLocator:
         info = (
             self.find_by_class_and_title(window, element)
             or self.find_by_class_index(window, element)
+            or self.find_by_control_type_and_title(window, element)  # botões owner-drawn
         )
         if info:
             return info

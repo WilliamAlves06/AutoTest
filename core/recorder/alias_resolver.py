@@ -45,6 +45,10 @@ def casa(a: dict, b: dict) -> bool:
     """
     if a.get("automation_id") and a["automation_id"] == b.get("automation_id"):
         return True
+    # control_type + título — botões owner-drawn (Incluir/Alterar/…) sem class_name
+    if (a.get("title") and a["title"] == b.get("title")
+            and a.get("control_type") and a["control_type"] == b.get("control_type")):
+        return True
     if a.get("class_name") and a["class_name"] == b.get("class_name"):
         if a.get("found_index") is not None and a.get("found_index") == b.get("found_index"):
             return True
