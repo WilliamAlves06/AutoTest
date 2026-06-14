@@ -344,22 +344,34 @@ class ActionDetector:
         except Exception:
             elem_point = None
 
-        # Botão: decide pelo ponto (barato) e nem resolve o foco.
+        # Botão: decide pelo ponto (barato) e nem espera o foco.
         if self._eh_botao_wrapper(elem_point):
             return self._locator.resolve(window, elem_point), elem_point
 
-        # Campo: deixa o foco assentar; o focado vence o ponto (que pode ser o vizinho).
-        elem_foco = None
-        try:
-            time.sleep(0.04)
-            elem_foco = window.get_focus()
-        except Exception:
-            elem_foco = None
-
+        # Campo: espera o clique ser processado e lê o foco (verdade do clique).
+        elem_foco = self._ler_foco_estavel(window)
         alvo = self._alvo_do_clique(elem_point, elem_foco)
         if alvo is None:
             return ElementInfo(strategy_used="failed"), None
         return self._locator.resolve(window, alvo), alvo
+
+    def _ler_foco_estavel(self, window):
+        """Elemento focado depois do clique ter sido processado pelo app.
+
+        O on_click do pynput dispara no mouse-down: quando esta thread roda, o
+        Delphi muitas vezes AINDA não moveu o foco. Lê algumas vezes (~0,18 s) e
+        fica com a última leitura válida — assim o foco já assentou no campo certo
+        (ex.: Filial), em vez do foco antigo (ex.: Complemento)."""
+        foco = None
+        for espera in (0.06, 0.06, 0.06):
+            time.sleep(espera)
+            try:
+                atual = window.get_focus()
+            except Exception:
+                atual = None
+            if atual is not None:
+                foco = atual
+        return foco
 
     @classmethod
     def _alvo_do_clique(cls, elem_point, elem_foco):
@@ -511,13 +523,14 @@ class ActionDetector:
         self._enqueue(action)
 
     def _enqueue(self, action: DetectedAction) -> None:
-        if not self._running:
-            return
+        # Não descarta ao parar: um clique em campo leva ~0,18 s para resolver
+        # (espera o foco assentar) e pode terminar logo depois do Parar — fica na
+        # fila para o drain final. start() limpa a fila, então não vaza p/ a sessão seguinte.
         self._last_action_time = action.timestamp
         self._last_action_type = action.action_type
         try:
             self._queue.put(action)
-            if self._callback:
+            if self._running and self._callback:
                 self._callback(action)
         except Exception:
             pass

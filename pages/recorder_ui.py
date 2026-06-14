@@ -289,7 +289,16 @@ class RecorderTab(tk.Frame):
         for action in self._detector.drain_queue():
             self._handle_action(action)
 
+        # Cliques em campo levam ~0,18 s para resolver (espera do foco) e podem
+        # terminar logo após o Parar — captura essas ações em atraso.
+        self.after(350, self._drain_final)
+
         self._write_panel("  --- gravacao encerrada ---\n", tag="comment")
+
+    def _drain_final(self):
+        """Drena ações que ainda estavam resolvendo quando a gravação parou."""
+        for action in self._detector.drain_queue():
+            self._handle_action(action)
 
     def _limpar(self):
         self._actions.clear()
