@@ -332,63 +332,69 @@ class ActionDetector:
         — essa é a fonte da verdade para Edit/Combo/Memo (igual à digitação).
         Para botões mantemos o `from_point`: nem sempre recebem foco, mas têm
         título único e não se sobrepõem a campos.
+
+        Custo: decide alvo por leitura BARATA do wrapper (class/control_type, sem
+        enumerar) e faz NO MÁXIMO UM `resolve()` (que varre descendants). Resolver
+        duas vezes deixava o clique lento a ponto de chegar depois do Parar e ser
+        descartado pelo `_enqueue` (gravava "0 ações").
         """
-        info_point = elem_point = None
+        elem_point = None
         try:
             elem_point = window.from_point(x, y)
-            info_point = self._locator.resolve(window, elem_point)
         except Exception:
-            info_point, elem_point = None, None
+            elem_point = None
 
-        # Botão pelo ponto → confiável; usa direto (evita resolver o foco à toa).
-        if self._parece_botao(info_point):
-            return info_point, elem_point
+        # Botão: decide pelo ponto (barato) e nem resolve o foco.
+        if self._eh_botao_wrapper(elem_point):
+            return self._locator.resolve(window, elem_point), elem_point
 
-        # Deixa o foco assentar e resolve o elemento focado.
-        info_foco = elem_foco = None
+        # Campo: deixa o foco assentar; o focado vence o ponto (que pode ser o vizinho).
+        elem_foco = None
         try:
-            time.sleep(0.05)
+            time.sleep(0.04)
             elem_foco = window.get_focus()
-            if elem_foco is not None:
-                info_foco = self._locator.resolve(window, elem_foco)
         except Exception:
-            info_foco, elem_foco = None, None
+            elem_foco = None
 
-        escolha = self._escolher_clicado(info_point, info_foco)
-        if escolha == "foco":
-            return info_foco, elem_foco
-        if escolha == "point":
-            return info_point, elem_point
-        return (info_point or ElementInfo(strategy_used="failed")), elem_point
+        alvo = self._alvo_do_clique(elem_point, elem_foco)
+        if alvo is None:
+            return ElementInfo(strategy_used="failed"), None
+        return self._locator.resolve(window, alvo), alvo
 
-    @staticmethod
-    def _escolher_clicado(info_point, info_foco) -> str:
-        """Decide quem representa o clique: 'point' (botão/único resolvido) ou 'foco' (campo)."""
-        point_ok = info_point is not None and info_point.is_resolved()
-        foco_ok = info_foco is not None and info_foco.is_resolved()
-        if point_ok and ActionDetector._parece_botao(info_point):
-            return "point"
-        if foco_ok and ActionDetector._parece_campo(info_foco):
-            return "foco"   # campo focado vence o from_point (que pode cair no vizinho)
-        if point_ok:
-            return "point"
-        if foco_ok:
-            return "foco"
-        return "point"
+    @classmethod
+    def _alvo_do_clique(cls, elem_point, elem_foco):
+        """Wrapper que representa o clique: botão no ponto > campo focado > ponto > foco."""
+        if cls._eh_botao_wrapper(elem_point):
+            return elem_point
+        if cls._eh_campo_wrapper(elem_foco):
+            return elem_foco   # campo focado é a verdade do clique
+        return elem_point if elem_point is not None else elem_foco
 
     @staticmethod
-    def _parece_campo(info) -> bool:
-        if info is None:
-            return False
-        alvo = f"{getattr(info, 'class_name', '') or ''} {getattr(info, 'control_type', '') or ''}".lower()
-        return any(k in alvo for k in ("edit", "combo", "memo", "spin", "date"))
+    def _wrapper_assinatura(element) -> str:
+        """class_name + control_type do wrapper — leitura barata, sem enumerar filhos."""
+        if element is None:
+            return ""
+        cls = tipo = ""
+        try:
+            cls = element.class_name() or ""
+        except Exception:
+            cls = ""
+        try:
+            tipo = str(element.element_info.control_type or "")
+        except Exception:
+            tipo = ""
+        return f"{cls} {tipo}".lower()
 
-    @staticmethod
-    def _parece_botao(info) -> bool:
-        if info is None:
-            return False
-        alvo = f"{getattr(info, 'class_name', '') or ''} {getattr(info, 'control_type', '') or ''}".lower()
+    @classmethod
+    def _eh_botao_wrapper(cls, element) -> bool:
+        alvo = cls._wrapper_assinatura(element)
         return any(b in alvo for b in ("button", "bitbtn", "fagronbutton", "speedbutton"))
+
+    @classmethod
+    def _eh_campo_wrapper(cls, element) -> bool:
+        alvo = cls._wrapper_assinatura(element)
+        return any(k in alvo for k in ("edit", "combo", "memo", "spin", "date"))
 
     @staticmethod
     def _eh_fcerta(process_name: Optional[str]) -> bool:
