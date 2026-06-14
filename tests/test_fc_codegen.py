@@ -104,6 +104,22 @@ def test_clique_em_campo_mais_type_vira_field_type():
     assert "fc.field(" in code
 
 
+def test_matched_alias_define_o_campo_no_codigo():
+    # O recorder casou o elemento ao vivo (handle) como "Filial"; o found_index
+    # local apontaria Complemento — matched_alias vence e o código sai certo.
+    gen = FCCodeGenerator()
+    existentes = {"FCFiliais": {
+        "Filial": {"alias": "Filial", "class_name": "TDBEdit", "found_index": 5},
+        "Complemento": {"alias": "Complemento", "class_name": "TDBEdit", "found_index": 4},
+    }}
+    campo = _ei(class_name="TDBEdit", found_index=4, control_type="Edit",
+                process_name="FCFiliais.exe", matched_alias="Filial")
+    actions = [_act("type", element=campo, text="49", process_name="FCFiliais.exe")]
+    code = gen.generate(actions, "x", aliases_por_modulo=existentes)
+    assert 'fc.field("Filial").type("49")' in code
+    assert "Complemento" not in code
+
+
 def test_merge_prefere_campo_focado_e_alias_existente():
     # Cenário real: o clique caiu no campo vizinho (Complemento), mas o foco da
     # digitação era o Filial -> deve gerar fc.field("Filial").

@@ -30,6 +30,8 @@ class ElementInfo:
     process_name:   Optional[str] = None
     window_title:   Optional[str] = None
     strategy_used:  str = "failed"
+    handle:         Optional[int] = None   # HWND vivo (runtime; não persistido)
+    matched_alias:  Optional[str] = None   # alias casado AO VIVO contra o mapa (runtime)
 
     def is_resolved(self) -> bool:
         return self.strategy_used != "failed"
@@ -268,7 +270,12 @@ class ElementLocator:
         try:
             focused = window.get_focus()
             if focused:
-                return self.resolve(window, focused)
+                info = self.resolve(window, focused)
+                try:
+                    info.handle = int(focused.handle)   # p/ casar o alias pelo HWND vivo
+                except Exception:
+                    pass
+                return info
         except Exception:
             pass
         process_name, window_title, window_class = self._get_context(window)

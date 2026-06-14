@@ -75,6 +75,13 @@ class AliasResolver:
 
     def alias_existente(self, info) -> Optional[str]:
         """Devolve o alias se o elemento casar um já conhecido — SEM criar um novo."""
+        # Casamento AO VIVO (handle -> alias, feito pelo recorder contra o mapa) é a
+        # verdade: dispensa found_index/automation_id, voláteis nos forms Delphi.
+        ao_vivo = (info.get("matched_alias") if isinstance(info, dict)
+                   else getattr(info, "matched_alias", None))
+        if ao_vivo:
+            return ao_vivo
+
         loc = info_para_localizador(info)
         if not loc:
             return None

@@ -611,6 +611,7 @@ class AliasEditorWindow(tk.Toplevel):
         self.transient(parent)
 
         self._elementos = _dedup_elementos(elementos) if dedup else list(elementos)
+        self._prefill_aliases_do_mapa(modulo_sug)   # reaproveita nomes ao re-mapear
         self._linhas: list[tuple[dict, tk.Entry]] = []
         self._realce: tk.Toplevel | None = None
         # parâmetros para reconectar à janela e reler a posição REAL dos campos
@@ -635,6 +636,45 @@ class AliasEditorWindow(tk.Toplevel):
 
         # pré-aquece a conexão enquanto o QA lê a grade (esconde a latência inicial)
         self._ensure_worker()
+
+    def _prefill_aliases_do_mapa(self, modulo: str) -> None:
+        """Pré-preenche o alias de cada elemento a partir do mapa curado existente.
+
+        Casa por (class_name, found_index) e, p/ botões desenhados, por
+        (control_type, title) — chaves consistentes entre dois mapeamentos da
+        mesma tela. Assim o re-mapeamento (agora p/ gravar a posição) não perde
+        os nomes já dados.
+        """
+        if not modulo:
+            return
+        try:
+            from fc.mapping_store import carregar_modulo
+            curado = carregar_modulo(modulo)
+        except Exception:
+            return
+        por_idx: dict[tuple, str] = {}
+        por_titulo: dict[tuple, str] = {}
+        for alias, e in curado.items():
+            cls = e.get("class_name") or ""
+            fi = e.get("found_index")
+            if fi is not None:
+                por_idx[(cls, fi)] = alias
+            ti, ct = e.get("title"), e.get("control_type")
+            if ti and ct:
+                por_titulo[(ct, ti)] = alias
+
+        for el in self._elementos:
+            if el.get("alias"):
+                continue
+            fi = el.get("found_index")
+            cls = el.get("class_name") or ""
+            alias = por_idx.get((cls, fi)) if fi is not None else None
+            if not alias:
+                ti, ct = el.get("title"), el.get("control_type")
+                if ti and ct:
+                    alias = por_titulo.get((ct, ti))
+            if alias:
+                el["alias"] = alias
 
     def _build_header(self, modulo_sug: str, janela_sug: str):
         card = tk.Frame(self, bg=C_WHITE, bd=1, relief="solid")

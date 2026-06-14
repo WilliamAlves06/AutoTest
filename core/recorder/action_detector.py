@@ -6,6 +6,7 @@ Acoes sao enfileiradas para consumo thread-safe pela UI Tkinter.
 
 from __future__ import annotations
 
+import os
 import queue
 import threading
 import time
@@ -32,6 +33,12 @@ try:
 except ImportError:
     PYWINAUTO_AVAILABLE = False
 
+try:
+    import pythoncom
+    PYTHONCOM_AVAILABLE = True
+except ImportError:
+    PYTHONCOM_AVAILABLE = False
+
 from core.recorder.locator import ElementLocator, ElementInfo
 
 try:
@@ -43,6 +50,28 @@ except ImportError:
 KEY_FLUSH_MS = 300
 _SPECIAL_DEDUPE_SEC = 0.08
 _MENU_CLICK_SUPPRESS_SEC = 0.5
+
+_ALIAS_STOP = object()        # sentinela: encerra o worker de resolução de aliases
+_ALIAS_WAIT_SEC = 3.0         # espera máx. do clique pelo cache do módulo ficar pronto
+
+# Diagnóstico do recorder: registra, por clique, o que from_point/foco/handle
+# resolveram. Desligado por padrão; ligue com RECORDER_DEBUG=1 para depurar.
+_RECORDER_DEBUG = os.environ.get("RECORDER_DEBUG", "0") != "0"
+_DEBUG_LOG = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "logs", "recorder_debug.log",
+)
+
+
+def _dbg(msg: str) -> None:
+    if not _RECORDER_DEBUG:
+        return
+    try:
+        os.makedirs(os.path.dirname(_DEBUG_LOG), exist_ok=True)
+        with open(_DEBUG_LOG, "a", encoding="utf-8") as fh:
+            fh.write(f"{time.strftime('%H:%M:%S')} {msg}\n")
+    except Exception:
+        pass
 
 
 @dataclass
@@ -124,6 +153,15 @@ class ActionDetector:
         self._last_special_time: float = 0.0
         self._hook_ok = False
         self._armed_assert: Optional[str] = None   # "visible"|"text"|"value" quando armado
+        # módulo -> {HWND vivo: alias} (resolução via child_window numa thread dedicada,
+        # igual ao editor) e módulo -> {alias: rect} (fallback por posição).
+        self._alias_cache: dict[str, dict[int, str]] = {}
+        self._rect_cache: dict[str, dict] = {}
+        # worker dedicado (COM próprio) que resolve o alias-map -> {HWND: alias}.
+        self._alias_req: queue.Queue = queue.Queue()
+        self._alias_evt: dict[str, threading.Event] = {}   # módulo -> pronto
+        self._alias_pedidos: set[str] = set()              # módulos já solicitados
+        self._alias_worker: Optional[threading.Thread] = None
 
     def start(self, callback: Optional[Callable[[DetectedAction], None]] = None) -> None:
         if self._running:
@@ -136,11 +174,20 @@ class ActionDetector:
         self._key_buffer.clear()
         self._current_process = None
         self._alt_pressed = False
+        self._alias_cache = {}   # nova sessão -> HWNDs novos -> recasa o mapa
+        self._rect_cache = {}
+        self._alias_evt = {}
+        self._alias_pedidos = set()
         while not self._queue.empty():
             try:
                 self._queue.get_nowait()
             except queue.Empty:
                 break
+
+        # worker dedicado (COM próprio) que resolve o alias-map ao vivo, igual ao editor.
+        self._alias_req = queue.Queue()
+        self._alias_worker = threading.Thread(target=self._alias_worker_loop, daemon=True)
+        self._alias_worker.start()
 
         self._mouse_listener = pynput_mouse.Listener(on_click=self._on_click)
         self._keyboard_listener = pynput_keyboard.Listener(
@@ -168,6 +215,10 @@ class ActionDetector:
         if self._keyboard_listener:
             self._keyboard_listener.stop()
             self._keyboard_listener = None
+        if self._alias_worker:
+            self._alias_req.put(_ALIAS_STOP)
+            self._alias_worker.join(timeout=2)
+            self._alias_worker = None
 
     def is_running(self) -> bool:
         return self._running
@@ -295,6 +346,7 @@ class ActionDetector:
                 info, element = self._resolver_elemento_clicado(window, x, y)
                 if self._armed_assert and element is not None:
                     valor = self._ler_valor(element)
+                self._anexar_alias(window, process_name, info, element, x, y)
             except Exception:
                 info = ElementInfo(process_name=process_name, strategy_used="failed")
 
@@ -346,14 +398,64 @@ class ActionDetector:
 
         # Botão: decide pelo ponto (barato) e nem espera o foco.
         if self._eh_botao_wrapper(elem_point):
-            return self._locator.resolve(window, elem_point), elem_point
+            info = self._locator.resolve(window, elem_point)
+            self._dbg_click(x, y, elem_point, None, elem_point, info, "botao/point")
+            return info, elem_point
 
-        # Campo: espera o clique ser processado e lê o foco.
+        # from_point já é um campo que CONTÉM o ponto -> é o clicado (rápido, sem foco).
+        if self._eh_campo_wrapper(elem_point) and self._ponto_dentro(elem_point, x, y):
+            info = self._locator.resolve(window, elem_point)
+            self._dbg_click(x, y, elem_point, None, elem_point, info, "point/contains")
+            return info, elem_point
+
+        # Campo cujo from_point não contém o ponto: tenta o foco (apps onde é impreciso).
         elem_foco = self._ler_foco_estavel(window)
         alvo = self._escolher_alvo(elem_point, elem_foco, x, y)
         if alvo is None:
+            self._dbg_click(x, y, elem_point, elem_foco, None, None, "nenhum")
             return ElementInfo(strategy_used="failed"), None
-        return self._locator.resolve(window, alvo), alvo
+        info = self._locator.resolve(window, alvo)
+        origem = "foco" if alvo is elem_foco else "point"
+        self._dbg_click(x, y, elem_point, elem_foco, alvo, info, origem)
+        return info, alvo
+
+    def _dbg_click(self, x, y, elem_point, elem_foco, alvo, info, origem) -> None:
+        if not _RECORDER_DEBUG:
+            return
+        try:
+            linhas = [
+                f"CLICK x={x} y={y} origem={origem}",
+                f"  point: {self._desc_wrapper(elem_point, x, y)}",
+                f"  foco : {self._desc_wrapper(elem_foco, x, y)}",
+            ]
+            if info is not None:
+                linhas.append(
+                    f"  alvo -> auto_id={getattr(info, 'automation_id', None)} "
+                    f"class={getattr(info, 'class_name', None)} "
+                    f"ctype={getattr(info, 'control_type', None)} "
+                    f"strat={getattr(info, 'strategy_used', None)}"
+                )
+            _dbg("\n".join(linhas))
+        except Exception:
+            pass
+
+    @staticmethod
+    def _desc_wrapper(w, x, y) -> str:
+        if w is None:
+            return "None"
+        sig = ActionDetector._wrapper_assinatura(w).strip()
+        auto = None
+        try:
+            auto = w.automation_id()
+        except Exception:
+            auto = None
+        rect = "?"
+        try:
+            r = w.rectangle()
+            rect = f"({r.left},{r.top},{r.right},{r.bottom})"
+        except Exception:
+            pass
+        return f"[{sig}] auto_id={auto} rect={rect} contains={ActionDetector._ponto_dentro(w, x, y)}"
 
     def _ler_foco_estavel(self, window):
         """Elemento focado depois do clique ter sido processado pelo app.
@@ -426,6 +528,205 @@ class ActionDetector:
         alvo = cls._wrapper_assinatura(element)
         return any(k in alvo for k in ("edit", "combo", "memo", "spin", "date"))
 
+    # ── casamento do clique ao alias-map (resolução ao vivo, thread dedicada) ──
+    def _anexar_alias(self, window, process_name, info, wrapper, x: int, y: int) -> None:
+        """Casa o clique a um alias do mapa.
+
+        PRINCIPAL: o worker dedicado já resolveu o mapa -> {HWND: alias} (via
+        child_window, igual ao editor). Aqui só pega o HWND do elemento clicado e
+        faz lookup — não conecta nada (conectar por clique dá deadlock).
+        FALLBACK: posição relativa à janela, se o mapa tiver `rect`.
+        """
+        if info is None:
+            return
+        modulo = self._modulo_do_processo(process_name)
+        if not modulo:
+            return
+
+        # garante que o worker está construindo (idempotente) e espera limitado.
+        self._pedir_cache(modulo)
+        h = None
+        if wrapper is not None:
+            try:
+                h = int(wrapper.handle)
+            except Exception:
+                h = None
+        if h:
+            evt = self._alias_evt.get(modulo)
+            if evt is not None:
+                evt.wait(timeout=_ALIAS_WAIT_SEC)   # cobre os primeiros cliques
+            alias = self._alias_cache.get(modulo, {}).get(h)
+            if alias:
+                info.handle = h
+                info.matched_alias = alias
+                _dbg(f"  match handle={h} -> alias={alias}")
+                return
+
+        # fallback por POSIÇÃO (só age se o mapa tiver `rect`, via re-mapeamento).
+        origem = self._origem_janela(window)
+        if origem is not None:
+            relx, rely = x - origem[0], y - origem[1]
+            alias = self._alias_em_posicao(modulo, relx, rely)
+            if alias:
+                info.matched_alias = alias
+                _dbg(f"  match pos rel=({relx},{rely}) -> alias={alias}")
+                return
+        _dbg(f"  match: handle={h} sem alias (cache pronto={modulo in self._alias_cache})")
+
+    def _pedir_cache(self, modulo: str) -> None:
+        """Pede ao worker para resolver o alias-map do módulo (uma vez por módulo)."""
+        if modulo in self._alias_pedidos:
+            return
+        self._alias_pedidos.add(modulo)
+        self._alias_evt.setdefault(modulo, threading.Event())
+        try:
+            self._alias_req.put(modulo)
+        except Exception:
+            pass
+
+    def _alias_worker_loop(self) -> None:
+        """Thread única com COM próprio que resolve alias-maps -> {HWND: alias}.
+
+        Espelha o `_hl_worker_loop` do editor: conecta num WindowSpecification (que
+        tem child_window, ao contrário do wrapper do from_point) e resolve cada
+        alias. Roda fora da thread do clique, então não trava a gravação.
+        """
+        if PYTHONCOM_AVAILABLE:
+            try:
+                pythoncom.CoInitializeEx(pythoncom.COINIT_MULTITHREADED)
+            except Exception:
+                pass
+        try:
+            while True:
+                modulo = self._alias_req.get()
+                if modulo is _ALIAS_STOP:
+                    break
+                if modulo in self._alias_cache:
+                    continue
+                cache = self._construir_cache(modulo)
+                self._alias_cache[modulo] = cache
+                evt = self._alias_evt.get(modulo)
+                if evt is not None:
+                    evt.set()
+                _dbg(f"handle-cache[{modulo}]: {len(cache)} aliases resolvidos ao vivo")
+        finally:
+            if PYTHONCOM_AVAILABLE:
+                try:
+                    pythoncom.CoUninitialize()
+                except Exception:
+                    pass
+
+    def _construir_cache(self, modulo: str) -> dict:
+        """{HWND vivo: alias} para o módulo — conecta e resolve o mapa inteiro."""
+        cache: dict = {}
+        win = self._conectar_janela(modulo)
+        if win is None:
+            return cache
+        try:
+            from fc import mapping_store
+            mapa = mapping_store.carregar_modulo(modulo)
+        except Exception:
+            mapa = {}
+        for alias, info_map in mapa.items():
+            wrapper = self._resolver_alias_vivo(win, info_map)
+            if wrapper is None:
+                continue
+            try:
+                h = int(wrapper.handle)
+            except Exception:
+                h = None
+            if h:
+                cache[h] = alias
+        return cache
+
+    @staticmethod
+    def _conectar_janela(modulo: str):
+        """WindowSpecification do módulo (suporta child_window) — como o editor."""
+        try:
+            from core.config import carregar_config
+            from tools.mapear_janela import _conectar_app, _obter_janela
+            proc = modulo if modulo.lower().endswith(".exe") else f"{modulo}.exe"
+            cfg = carregar_config()
+            app = _conectar_app(processo=proc, exe_path=cfg.get("exe_path", ""), timeout_janela=6)
+            return _obter_janela(app, None, 6, proc)
+        except Exception as e:  # noqa: BLE001
+            _dbg(f"conectar janela [{modulo}] falhou: {e}")
+            return None
+
+    @staticmethod
+    def _resolver_alias_vivo(win, info_map: dict):
+        """Resolve um alias-map -> wrapper via child_window. SEM automation_id
+        (volátil; pode colidir com o HWND vivo de outro controle). Prioridade:
+        class+title, control_type+title, class+found_index — como o playback."""
+        ctype = info_map.get("control_type")
+        cls = info_map.get("class_name")
+        title = info_map.get("title")
+        fi = info_map.get("found_index")
+        specs: list[dict] = []
+        if cls and title:
+            specs.append({"class_name": cls, "title": title})
+        if title and ctype and not cls:
+            specs.append({"control_type": ctype, "title": title})
+        if cls and fi is not None:
+            specs.append({"class_name": cls, "found_index": fi})
+        for kw in specs:
+            try:
+                return win.child_window(**kw).wrapper_object()
+            except Exception:
+                continue
+        return None
+
+    def _alias_em_posicao(self, modulo: str, relx: int, rely: int) -> Optional[str]:
+        """Fallback: alias cujo `rect` (relativo à janela) contém (relx, rely)."""
+        mapa = self._mapa_com_rect(modulo)
+        melhor: Optional[str] = None
+        melhor_area: Optional[int] = None
+        for alias, rect in mapa.items():
+            left, top, right, bottom = rect
+            if left <= relx <= right and top <= rely <= bottom:
+                area = max(1, (right - left)) * max(1, (bottom - top))
+                if melhor_area is None or area < melhor_area:
+                    melhor, melhor_area = alias, area
+        return melhor
+
+    def _mapa_com_rect(self, modulo: str) -> dict:
+        """{alias: [l,t,r,b]} do módulo (fallback por posição). Cache separado."""
+        cache = self._rect_cache.get(modulo)
+        if cache is not None:
+            return cache
+        cache = {}
+        try:
+            from fc import mapping_store
+            mapa = mapping_store.carregar_modulo(modulo)
+        except Exception:
+            mapa = {}
+        for alias, info_map in mapa.items():
+            rect = info_map.get("rect")
+            if isinstance(rect, (list, tuple)) and len(rect) == 4:
+                cache[alias] = [int(v) for v in rect]
+        self._rect_cache[modulo] = cache
+        return cache
+
+    @staticmethod
+    def _origem_janela(window):
+        """Canto (left, top) da janela — mesma origem que o mapeador usa p/ o rect."""
+        try:
+            r = window.rectangle()
+            return int(r.left), int(r.top)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _modulo_do_processo(process_name: Optional[str]) -> Optional[str]:
+        """'FCFiliais.exe' -> 'FCFiliais'; None para fcerta/não-FC."""
+        if not process_name:
+            return None
+        base = process_name[:-4] if process_name.lower().endswith(".exe") else process_name
+        low = base.lower()
+        if low == "fcerta" or not low.startswith("fc"):
+            return None
+        return base
+
     @staticmethod
     def _eh_fcerta(process_name: Optional[str]) -> bool:
         """True se o processo é do Formula Certa (fcerta.exe ou módulos FC*.exe)."""
@@ -489,6 +790,10 @@ class ActionDetector:
                     timestamp=time.time(),
                 ))
             self._current_process = process_name
+            # adianta a resolução do alias-map assim que o módulo FC aparece.
+            modulo = self._modulo_do_processo(process_name)
+            if modulo:
+                self._pedir_cache(modulo)
 
     def _attach_foreground_context(self, action: DetectedAction) -> None:
         if not (WIN32_AVAILABLE and PYWINAUTO_AVAILABLE):
@@ -500,6 +805,8 @@ class ActionDetector:
             self._maybe_emit_process_change(process_name)
             info = self._locator.resolve_focused(window)
             if info.is_resolved():
+                # O alias da digitação vem do merge com o clique anterior (que já
+                # casou por posição). Aqui só anexa o contexto de janela/processo.
                 action.element = info
                 action.process_name = process_name
                 action.window_title = info.window_title

@@ -3,314 +3,492 @@
   "window": "Filiais",
   "elements": [
     {
-      "alias": "Consulta_Campo",
-      "automation_id": "264934",
+      "alias": "consulta",
+      "automation_id": "853578",
       "class_name": "TEdit",
       "control_type": "Edit",
       "found_index": 0,
-      "instance": 1
+      "instance": 1,
+      "rect": [
+        157,
+        130,
+        477,
+        155
+      ]
     },
     {
       "alias": "ID_RXMais",
-      "automation_id": "199714",
+      "automation_id": "723702",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 0,
-      "instance": 2
+      "instance": 2,
+      "rect": [
+        127,
+        581,
+        465,
+        606
+      ]
     },
     {
-      "alias": "Insc_Municipal",
-      "automation_id": "1180462",
+      "alias": "InscMunicipais",
+      "automation_id": "920538",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 1,
-      "instance": 3
+      "instance": 3,
+      "rect": [
+        130,
+        549,
+        294,
+        573
+      ]
     },
     {
       "alias": "CNPJ",
-      "automation_id": "1182406",
+      "automation_id": "1181384",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 2,
-      "instance": 4
+      "instance": 4,
+      "rect": [
+        130,
+        269,
+        341,
+        294
+      ]
     },
     {
-      "alias": "Municipío",
-      "automation_id": "264928",
+      "alias": "Municipio",
+      "automation_id": "658288",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 3,
-      "instance": 5
+      "instance": 5,
+      "rect": [
+        130,
+        409,
+        341,
+        433
+      ]
     },
     {
       "alias": "Complemento",
-      "automation_id": "919938",
+      "automation_id": "1967400",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 4,
-      "instance": 6
+      "instance": 6,
+      "rect": [
+        130,
+        374,
+        341,
+        398
+      ]
     },
     {
-      "alias": "Filial",
-      "automation_id": "658194",
+      "alias": "Filiais",
+      "automation_id": "723868",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 5,
-      "instance": 7
+      "instance": 7,
+      "rect": [
+        199,
+        233,
+        417,
+        257
+      ]
     },
     {
       "alias": "Bairro",
-      "automation_id": "134180",
+      "automation_id": "592662",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 6,
-      "instance": 8
+      "instance": 8,
+      "rect": [
+        402,
+        374,
+        692,
+        398
+      ]
     },
     {
       "alias": "Numero",
-      "automation_id": "527032",
+      "automation_id": "658088",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 7,
-      "instance": 9
+      "instance": 9,
+      "rect": [
+        571,
+        339,
+        692,
+        363
+      ]
     },
     {
       "alias": "Endereço",
-      "automation_id": "1313046",
+      "automation_id": "854688",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 8,
-      "instance": 10
+      "instance": 10,
+      "rect": [
+        130,
+        338,
+        491,
+        362
+      ]
     },
     {
-      "alias": "Razao_Social",
-      "automation_id": "854414",
+      "alias": "RazãoSocial",
+      "automation_id": "592818",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 9,
-      "instance": 11
+      "instance": 11,
+      "rect": [
+        130,
+        303,
+        692,
+        327
+      ]
     },
     {
-      "alias": "Inscr_Estadual",
-      "automation_id": "133992",
+      "alias": "InscEstatudal",
+      "automation_id": "592762",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 10,
-      "instance": 12
+      "instance": 12,
+      "rect": [
+        471,
+        269,
+        692,
+        293
+      ]
     },
     {
-      "alias": "Fax_Numero1",
-      "automation_id": "133994",
+      "alias": "NumFax",
+      "automation_id": "396266",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 11,
-      "instance": 13
+      "instance": 13,
+      "rect": [
+        181,
+        514,
+        341,
+        538
+      ]
     },
     {
-      "alias": "Telefone1_1",
-      "automation_id": "133996",
+      "alias": "1NumTelefone1",
+      "automation_id": "658232",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 12,
-      "instance": 14
+      "instance": 14,
+      "rect": [
+        181,
+        444,
+        341,
+        468
+      ]
     },
     {
       "alias": "CEP",
-      "automation_id": "133998",
+      "automation_id": "658228",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 13,
-      "instance": 15
+      "instance": 15,
+      "rect": [
+        571,
+        409,
+        692,
+        433
+      ]
     },
     {
-      "alias": "Telefone1_2",
-      "automation_id": "134000",
+      "alias": "1NumTelefone2",
+      "automation_id": "854132",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 14,
-      "instance": 16
+      "instance": 16,
+      "rect": [
+        361,
+        444,
+        692,
+        468
+      ]
     },
     {
-      "alias": "Telefone2_2",
-      "automation_id": "134002",
+      "alias": "2NumTelefone2",
+      "automation_id": "788272",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 15,
-      "instance": 17
+      "instance": 17,
+      "rect": [
+        361,
+        481,
+        692,
+        504
+      ]
     },
     {
-      "alias": "DDD_Tel1",
-      "automation_id": "134004",
+      "alias": "1DDDTell",
+      "automation_id": "1312734",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 16,
-      "instance": 18
+      "instance": 18,
+      "rect": [
+        130,
+        444,
+        170,
+        468
+      ]
     },
     {
-      "alias": "DDD_Fax",
-      "automation_id": "134006",
+      "alias": "DDDFax",
+      "automation_id": "789162",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 17,
-      "instance": 19
+      "instance": 19,
+      "rect": [
+        130,
+        514,
+        170,
+        538
+      ]
     },
     {
-      "alias": "Telefone2_1",
-      "automation_id": "134008",
+      "alias": "2NumTelefone1",
+      "automation_id": "1246368",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 18,
-      "instance": 20
+      "instance": 20,
+      "rect": [
+        181,
+        481,
+        341,
+        504
+      ]
     },
     {
-      "alias": "DDD_Tel2",
-      "automation_id": "134010",
+      "alias": "2DDDTell",
+      "automation_id": "1115810",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 19,
-      "instance": 21
+      "instance": 21,
+      "rect": [
+        130,
+        481,
+        170,
+        504
+      ]
     },
     {
-      "alias": "Fax_Numero2",
-      "automation_id": "134012",
+      "alias": "FaxTell2",
+      "automation_id": "2491654",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 20,
-      "instance": 22
+      "instance": 22,
+      "rect": [
+        361,
+        514,
+        692,
+        538
+      ]
     },
     {
       "alias": "Contato",
-      "automation_id": "134014",
+      "automation_id": "854058",
       "class_name": "TDBEdit",
       "control_type": "Edit",
       "found_index": 21,
-      "instance": 23
+      "instance": 23,
+      "rect": [
+        361,
+        549,
+        692,
+        573
+      ]
     },
     {
-      "alias": "ID_Filial",
-      "automation_id": "134024",
-      "class_name": "TDBEdit",
-      "control_type": "Edit",
-      "found_index": 22,
-      "instance": 24
-    },
-    {
-      "alias": "Tipo_Consulta",
-      "automation_id": "854850",
+      "alias": "Campo_Consulta",
+      "automation_id": "592638",
       "class_name": "TComboBox",
       "control_type": "ComboBox",
       "found_index": 0,
-      "instance": 25
+      "instance": 25,
+      "rect": [
+        8,
+        130,
+        149,
+        155
+      ]
     },
     {
       "alias": "cancelar",
-      "automation_id": "199572",
+      "automation_id": "396268",
       "class_name": "TcxButton",
       "title": "Cancelar",
       "control_type": "Button",
       "found_index": 0,
-      "instance": 26
+      "instance": 26,
+      "rect": [
+        759,
+        241,
+        881,
+        278
+      ]
     },
     {
       "alias": "salvar",
-      "automation_id": "1967706",
+      "automation_id": "461820",
       "class_name": "TcxButton",
       "title": "Salvar",
       "control_type": "Button",
       "found_index": 1,
-      "instance": 27
+      "instance": 27,
+      "rect": [
+        759,
+        200,
+        881,
+        236
+      ]
     },
     {
-      "alias": "UF_Select",
-      "automation_id": "134018",
-      "class_name": "TcxDBLookupComboBox",
-      "control_type": "Pane",
-      "found_index": 0,
-      "instance": 28
-    },
-    {
-      "alias": "Grupo_Select",
-      "automation_id": "134022",
-      "class_name": "TcxDBLookupComboBox",
-      "control_type": "Pane",
-      "found_index": 1,
-      "instance": 29
-    },
-    {
-      "alias": "UF_Inner",
-      "automation_id": "134016",
+      "alias": "UF",
+      "automation_id": "787296",
       "class_name": "TcxCustomComboBoxInnerEdit",
       "control_type": "Edit",
       "found_index": 0,
-      "instance": 30
+      "instance": 30,
+      "rect": [
+        407,
+        413,
+        443,
+        429
+      ]
     },
     {
-      "alias": "Grupo_Inner",
-      "automation_id": "134020",
+      "alias": "Grupo",
+      "automation_id": "658380",
       "class_name": "TcxCustomComboBoxInnerEdit",
       "control_type": "Edit",
       "found_index": 1,
-      "instance": 31
-    },
-    {
-      "alias": "Page_Control",
-      "automation_id": "919154",
-      "class_name": "TcxPageControl",
-      "control_type": "Pane",
-      "found_index": 0,
-      "instance": 32
+      "instance": 31,
+      "rect": [
+        614,
+        240,
+        670,
+        256
+      ]
     },
     {
       "alias": "geral",
-      "automation_id": "1640900",
+      "automation_id": "1051214",
       "class_name": "TcxTabSheet",
       "title": "Geral",
       "control_type": "Pane",
       "found_index": 0,
-      "instance": 33
+      "instance": 33,
+      "rect": [
+        11,
+        203,
+        737,
+        651
+      ]
     },
     {
       "alias": "Tipo",
-      "automation_id": "265052",
+      "automation_id": "1180016",
       "class_name": "TJvDBComboBox",
       "control_type": "ComboBox",
       "found_index": 0,
-      "instance": 34
+      "instance": 34,
+      "rect": [
+        471,
+        236,
+        564,
+        261
+      ]
     },
     {
       "alias": "incluir",
       "title": "Incluir",
       "control_type": "Button",
       "found_index": 0,
-      "instance": 35
+      "instance": 35,
+      "rect": [
+        4,
+        33,
+        101,
+        105
+      ]
     },
     {
       "alias": "alterar",
       "title": "Alterar",
       "control_type": "Button",
       "found_index": 1,
-      "instance": 36
+      "instance": 36,
+      "rect": [
+        101,
+        33,
+        198,
+        105
+      ]
     },
     {
       "alias": "excluir",
       "title": "Excluir",
       "control_type": "Button",
       "found_index": 2,
-      "instance": 37
+      "instance": 37,
+      "rect": [
+        198,
+        33,
+        319,
+        105
+      ]
     },
     {
       "alias": "consultar",
       "title": "Consultar",
       "control_type": "Button",
       "found_index": 3,
-      "instance": 38
+      "instance": 38,
+      "rect": [
+        319,
+        33,
+        440,
+        105
+      ]
     },
     {
       "alias": "imprimir",
       "title": "Imprimir",
       "control_type": "Button",
       "found_index": 4,
-      "instance": 39
+      "instance": 39,
+      "rect": [
+        440,
+        33,
+        561,
+        105
+      ]
     },
     {
       "alias": "abrir",
@@ -318,40 +496,13 @@
       "title": "Abrir",
       "control_type": "Button",
       "found_index": 5,
-      "instance": 40
-    },
-    {
-      "alias": "pag_Web_Endereço",
-      "automation_id": "462870",
-      "class_name": "TDBEdit",
-      "control_type": "Edit",
-      "found_index": 0,
-      "instance": 2
-    },
-    {
-      "alias": "Email_2",
-      "automation_id": "919866",
-      "class_name": "TDBEdit",
-      "control_type": "Edit",
-      "found_index": 1,
-      "instance": 3
-    },
-    {
-      "alias": "Email",
-      "automation_id": "1444844",
-      "class_name": "TDBEdit",
-      "control_type": "Edit",
-      "found_index": 2,
-      "instance": 4
-    },
-    {
-      "alias": "internet",
-      "automation_id": "4654738",
-      "class_name": "TcxTabSheet",
-      "title": "Internet",
-      "control_type": "Pane",
-      "found_index": 0,
-      "instance": 9
+      "instance": 40,
+      "rect": [
+        129,
+        131,
+        148,
+        154
+      ]
     }
   ]
 }

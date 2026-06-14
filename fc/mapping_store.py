@@ -67,11 +67,14 @@ def salvar_mapa(module: str, window: str, elementos: list[dict]) -> Path:
 
 
 def _extrair(elemento: dict) -> dict:
-    """Mantém apenas alias + campos de localização (descarta rectangle, flags)."""
+    """Mantém alias + localizadores + `rect` (posição relativa à janela, p/ o recorder)."""
     out = {"alias": str(elemento["alias"]).strip()}
     for campo in _CAMPOS_LOCALIZADOR:
         if campo in elemento and elemento[campo] not in (None, ""):
             out[campo] = elemento[campo]
+    rect = elemento.get("rect")
+    if isinstance(rect, (list, tuple)) and len(rect) == 4:
+        out["rect"] = [int(v) for v in rect]
     return out
 
 

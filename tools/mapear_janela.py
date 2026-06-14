@@ -610,7 +610,26 @@ def _varrer_janela(
 
         _emitir(on_progress, f"  {rotulo}: {n_classe} exportados (total {len(elementos)})")
 
+    # Posição RELATIVA à janela (origem = canto da janela). É o localizador estável
+    # usado pelo recorder para cruzar o clique com o alias — independe de
+    # automation_id (volátil) e found_index (enumeração divergente).
+    _anexar_rect_relativo(janela, elementos)
+
     return elementos
+
+
+def _anexar_rect_relativo(janela, elementos: list[dict]) -> None:
+    """Adiciona `rect` = [l,t,r,b] relativo ao canto da janela a cada elemento."""
+    origem = _safe_rectangle(janela)
+    if not origem:
+        return
+    ox, oy = origem[0], origem[1]
+    for el in elementos:
+        abs_rect = el.get("rectangle")
+        if not abs_rect or len(abs_rect) != 4:
+            continue
+        l, t, r, b = abs_rect
+        el["rect"] = [l - ox, t - oy, r - ox, b - oy]
 
 
 def mapear_janela(

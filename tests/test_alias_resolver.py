@@ -127,3 +127,127 @@ def test_clique_sem_foco_util_cai_no_from_point():
     assert ActionDetector._escolher_alvo(campo, None, 50, 210) is campo
     assert ActionDetector._ponto_dentro(campo, 50, 210)
     assert not ActionDetector._ponto_dentro(campo, 50, 999)
+
+
+# ── casamento ao vivo (matched_alias) vence o índice volátil ─────────────────
+def test_matched_alias_vence_found_index():
+    # found_index aponta p/ Complemento, mas o casamento ao vivo (handle) diz Filial.
+    existentes = {
+        "Filial": {"alias": "Filial", "class_name": "TDBEdit", "found_index": 5},
+        "Complemento": {"alias": "Complemento", "class_name": "TDBEdit", "found_index": 4},
+    }
+    r = AliasResolver("FCFiliais", existentes=existentes)
+    info = _ei(class_name="TDBEdit", found_index=4, matched_alias="Filial")
+    assert r.alias_existente(info) == "Filial"
+    assert r.alias_para(info) == "Filial"
+    assert r.novos == {}          # não cria alias novo — é o curado
+
+
+def test_modulo_do_processo():
+    from core.recorder.action_detector import ActionDetector
+    assert ActionDetector._modulo_do_processo("FCFiliais.exe") == "FCFiliais"
+    assert ActionDetector._modulo_do_processo("fcerta.exe") is None
+    assert ActionDetector._modulo_do_processo("python.exe") is None
+    assert ActionDetector._modulo_do_processo(None) is None
+
+
+# ── cruzamento por POSIÇÃO (geometria estável) ───────────────────────────────
+def test_alias_em_posicao_menor_caixa_vence():
+    from core.recorder.action_detector import ActionDetector
+    d = ActionDetector()
+    d._rect_cache["FCFiliais"] = {
+        "geral": [0, 0, 500, 400],        # pane grande que também contém o ponto
+        "Filial": [10, 10, 100, 30],
+        "Razao_Social": [10, 50, 300, 70],
+    }
+    # ponto dentro de Filial E do pane -> Filial (menor caixa)
+    assert d._alias_em_posicao("FCFiliais", 50, 20) == "Filial"
+    assert d._alias_em_posicao("FCFiliais", 150, 60) == "Razao_Social"
+    assert d._alias_em_posicao("FCFiliais", 400, 380) == "geral"   # só o pane
+    assert d._alias_em_posicao("FCFiliais", 999, 999) is None      # fora de tudo
+
+
+# ── resolução ao vivo do alias-map (thread dedicada, igual ao editor) ────────
+class _SpecFalsa:
+    def __init__(self, ok):
+        self._ok = ok
+
+    def wrapper_object(self):
+        if not self._ok:
+            raise RuntimeError("não localizado")
+        return "WRAPPER"
+
+
+def test_resolver_alias_vivo_ignora_auto_id_e_usa_found_index():
+    from core.recorder.action_detector import ActionDetector
+
+    chamadas = []
+
+    class _Win:
+        def child_window(self, **kw):
+            chamadas.append(kw)
+            return _SpecFalsa("found_index" in kw)   # só resolve por class+found_index
+
+    info = {"automation_id": "658194", "class_name": "TDBEdit",
+            "control_type": "Edit", "found_index": 5}
+    assert ActionDetector._resolver_alias_vivo(_Win(), info) == "WRAPPER"
+    assert all("auto_id" not in kw for kw in chamadas)            # nunca usa o id volátil
+    assert {"class_name": "TDBEdit", "found_index": 5} in chamadas
+
+
+def test_resolver_alias_vivo_botao_por_control_type_e_titulo():
+    from core.recorder.action_detector import ActionDetector
+
+    chamadas = []
+
+    class _Win:
+        def child_window(self, **kw):
+            chamadas.append(kw)
+            return _SpecFalsa(True)
+
+    info = {"title": "Incluir", "control_type": "Button"}   # owner-drawn (sem class_name)
+    assert ActionDetector._resolver_alias_vivo(_Win(), info) == "WRAPPER"
+    assert chamadas[0] == {"control_type": "Button", "title": "Incluir"}
+
+
+def test_anexar_alias_casa_pelo_handle_do_cache():
+    import threading
+    import types
+
+    from core.recorder.action_detector import ActionDetector
+    from core.recorder.locator import ElementInfo
+
+    d = ActionDetector()
+    d._alias_cache["FCFiliais"] = {12345: "Filial"}
+    evt = threading.Event()
+    evt.set()
+    d._alias_evt["FCFiliais"] = evt   # cache pronto -> wait retorna na hora
+
+    info = ElementInfo(class_name="TDBEdit", strategy_used="class_instance")
+    wrapper = types.SimpleNamespace(handle=12345)
+    window = types.SimpleNamespace(
+        rectangle=lambda: types.SimpleNamespace(left=0, top=0, right=1, bottom=1)
+    )
+    d._anexar_alias(window, "FCFiliais.exe", info, wrapper, 50, 60)
+    assert info.matched_alias == "Filial"
+    assert info.handle == 12345
+
+
+def test_anexar_rect_relativo_subtrai_a_origem_da_janela():
+    import types
+
+    from tools.mapear_janela import _anexar_rect_relativo
+
+    class _Janela:
+        def rectangle(self):
+            return types.SimpleNamespace(left=100, top=200, right=900, bottom=800)
+
+    els = [
+        {"rectangle": [150, 250, 260, 274]},
+        {"rectangle": [150, 290, 460, 314]},
+        {"sem": "rectangle"},
+    ]
+    _anexar_rect_relativo(_Janela(), els)
+    assert els[0]["rect"] == [50, 50, 160, 74]
+    assert els[1]["rect"] == [50, 90, 360, 114]
+    assert "rect" not in els[2]

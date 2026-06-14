@@ -23,6 +23,15 @@ def test_extrair_mantem_alias_e_descarta_vazios():
     assert "rectangle" not in out
 
 
+def test_extrair_preserva_rect_relativo():
+    # `rect` (posição relativa à janela) é o localizador do recorder — deve persistir.
+    el = {"alias": "Filial", "class_name": "TDBEdit", "found_index": 5,
+          "rect": [10, 20, 110, 44], "rectangle": [110, 220, 210, 244]}
+    out = mapping_store._extrair(el)
+    assert out["rect"] == [10, 20, 110, 44]
+    assert "rectangle" not in out   # absoluto continua descartado
+
+
 def test_norm_modulo_remove_exe():
     assert mapping_store._norm_modulo("FCReceitas.exe") == "FCReceitas"
     assert mapping_store._norm_modulo("FCFiliais") == "FCFiliais"
