@@ -76,37 +76,54 @@ def test_alias_novo_a_partir_do_titulo_e_unico():
     assert alias == "consultar_2"       # 'consultar' já existe -> sufixo
 
 
-# ── escolha do elemento clicado (from_point x foco) ──────────────────────────
+# ── escolha do elemento clicado (geometria: from_point x foco) ───────────────
 class _FakeWrapper:
-    """Imita o mínimo do wrapper pywinauto: class_name() e element_info.control_type."""
-    def __init__(self, cls="", control_type=""):
+    """Imita o mínimo do wrapper pywinauto: class_name(), control_type, rectangle()."""
+    def __init__(self, cls="", control_type="", rect=None):
         self._cls = cls
         self.element_info = types.SimpleNamespace(control_type=control_type)
+        self._rect = rect   # (left, top, right, bottom) ou None
 
     def class_name(self):
         return self._cls
 
+    def rectangle(self):
+        if self._rect is None:
+            raise RuntimeError("sem retângulo")
+        left, top, right, bottom = self._rect
+        return types.SimpleNamespace(left=left, top=top, right=right, bottom=bottom)
 
-def test_clique_em_campo_prefere_foco_sobre_from_point_vizinho():
+
+def test_modo_edicao_foco_contem_ponto_vence_o_vizinho():
     from core.recorder.action_detector import ActionDetector
-    # from_point caiu no vizinho (edit); o foco é o campo certo (outro edit).
-    vizinho = _FakeWrapper("TDBEdit", "Edit")
-    focado = _FakeWrapper("TDBEdit", "Edit")
-    assert ActionDetector._alvo_do_clique(vizinho, focado) is focado
+    # Clique em (50,210): from_point caiu no vizinho, mas o foco (campo certo)
+    # também contém o ponto -> prioriza o foco.
+    vizinho = _FakeWrapper("TDBEdit", "Edit", rect=(0, 200, 100, 220))
+    focado = _FakeWrapper("TDBEdit", "Edit", rect=(0, 200, 100, 220))
+    assert ActionDetector._escolher_alvo(vizinho, focado, 50, 210) is focado
+
+
+def test_modo_consulta_foco_fora_do_ponto_usa_from_point():
+    from core.recorder.action_detector import ActionDetector
+    # Modo consulta: foco fica no campo de busca lá em cima (não contém o ponto);
+    # o elemento sob o cursor (from_point) é quem vale.
+    busca = _FakeWrapper("TEdit", "Edit", rect=(0, 100, 100, 120))
+    sob_cursor = _FakeWrapper("TDBEdit", "Edit", rect=(0, 200, 100, 220))
+    assert ActionDetector._escolher_alvo(sob_cursor, busca, 50, 210) is sob_cursor
 
 
 def test_clique_em_botao_mantem_from_point():
     from core.recorder.action_detector import ActionDetector
-    # Botão pelo ponto vence — botão nem sempre recebe foco (foco fica no edit anterior).
-    botao = _FakeWrapper("TcxButton", "Button")
-    edit_focado = _FakeWrapper("TDBEdit", "Edit")
-    assert ActionDetector._alvo_do_clique(botao, edit_focado) is botao
+    botao = _FakeWrapper("TcxButton", "Button", rect=(0, 0, 80, 30))
+    edit_focado = _FakeWrapper("TDBEdit", "Edit", rect=(0, 200, 100, 220))
+    assert ActionDetector._escolher_alvo(botao, edit_focado, 40, 15) is botao
     assert ActionDetector._eh_botao_wrapper(botao)
     assert not ActionDetector._eh_campo_wrapper(botao)
 
 
 def test_clique_sem_foco_util_cai_no_from_point():
     from core.recorder.action_detector import ActionDetector
-    campo = _FakeWrapper("TDBEdit", "Edit")
-    assert ActionDetector._alvo_do_clique(campo, None) is campo
-    assert ActionDetector._eh_campo_wrapper(campo)
+    campo = _FakeWrapper("TDBEdit", "Edit", rect=(0, 200, 100, 220))
+    assert ActionDetector._escolher_alvo(campo, None, 50, 210) is campo
+    assert ActionDetector._ponto_dentro(campo, 50, 210)
+    assert not ActionDetector._ponto_dentro(campo, 50, 999)

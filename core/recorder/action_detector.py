@@ -348,9 +348,9 @@ class ActionDetector:
         if self._eh_botao_wrapper(elem_point):
             return self._locator.resolve(window, elem_point), elem_point
 
-        # Campo: espera o clique ser processado e lê o foco (verdade do clique).
+        # Campo: espera o clique ser processado e lê o foco.
         elem_foco = self._ler_foco_estavel(window)
-        alvo = self._alvo_do_clique(elem_point, elem_foco)
+        alvo = self._escolher_alvo(elem_point, elem_foco, x, y)
         if alvo is None:
             return ElementInfo(strategy_used="failed"), None
         return self._locator.resolve(window, alvo), alvo
@@ -374,13 +374,31 @@ class ActionDetector:
         return foco
 
     @classmethod
-    def _alvo_do_clique(cls, elem_point, elem_foco):
-        """Wrapper que representa o clique: botão no ponto > campo focado > ponto > foco."""
+    def _escolher_alvo(cls, elem_point, elem_foco, x: int, y: int):
+        """Wrapper que representa o clique, usando a GEOMETRIA como verdade.
+
+        O campo clicado é aquele cujo retângulo contém (x, y). Prioriza o foco
+        (modo edição: from_point cai no vizinho, mas o foco assenta no campo
+        certo); se o foco não contém o ponto (modo consulta: foco fica no campo
+        de busca), usa o elemento sob o cursor.
+        """
         if cls._eh_botao_wrapper(elem_point):
             return elem_point
-        if cls._eh_campo_wrapper(elem_foco):
-            return elem_foco   # campo focado é a verdade do clique
+        for cand in (elem_foco, elem_point):
+            if cls._eh_campo_wrapper(cand) and cls._ponto_dentro(cand, x, y):
+                return cand
         return elem_point if elem_point is not None else elem_foco
+
+    @staticmethod
+    def _ponto_dentro(wrapper, x: int, y: int) -> bool:
+        """True se (x, y) cai dentro do retângulo do wrapper (geometria = verdade)."""
+        if wrapper is None:
+            return False
+        try:
+            r = wrapper.rectangle()
+            return r.left <= x <= r.right and r.top <= y <= r.bottom
+        except Exception:
+            return False
 
     @staticmethod
     def _wrapper_assinatura(element) -> str:
