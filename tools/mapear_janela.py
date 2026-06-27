@@ -632,6 +632,226 @@ def _anexar_rect_relativo(janela, elementos: list[dict]) -> None:
         el["rect"] = [l - ox, t - oy, r - ox, b - oy]
 
 
+def merge_key(el: dict) -> tuple:
+    """Identidade estavel p/ mesclagem entre passes de varredura: automation_id
+    quando disponivel (estavel no Delphi); senao control_type+title+class_name."""
+    aid = (el.get("automation_id") or "").strip()
+    if aid:
+        return ("aid", aid)
+    return ("ct", el.get("control_type") or "", el.get("title") or "", el.get("class_name") or "")
+
+
+def mesclar_elementos(base: list[dict], novos: list[dict]) -> tuple[list[dict], int]:
+    """Funde `novos` em `base` por merge_key(), preservando a 1a ocorrencia de
+    cada chave (mesmo automation_id ja coletado nao e duplicado). Retorna
+    (lista_resultante, quantidade_de_novos_adicionados)."""
+    chaves = {merge_key(el) for el in base}
+    resultado = list(base)
+    adicionados = 0
+    for el in novos:
+        k = merge_key(el)
+        if k in chaves:
+            continue
+        chaves.add(k)
+        resultado.append(el)
+        adicionados += 1
+    return resultado, adicionados
+
+
+def _safe_select_tab(tab_ctrl, on_progress: Callable[[str], None] | None) -> bool:
+    """
+    Tenta selecionar a aba `tab_ctrl` (TcxTabSheet ou seu header). Cascata, da
+    estrategia menos intrusiva para a mais intrusiva:
+
+      1. tab_ctrl.select()      -- UIA SelectionItemPattern (sem coordenadas;
+                                    so funciona se o controle DevExpress expuser
+                                    o padrao).
+      2. tab_ctrl.click_input() -- clique de mouse no centro do retangulo do
+                                    proprio controle (fallback quase universal
+                                    para controles owner-drawn).
+
+    Retorna True se um dos passos nao lancou excecao — isso NAO garante que a
+    aba de fato mudou; quem chama deve confirmar relendo a TcxTabSheet ativa
+    (ver `_aba_ativa_titulo`).
+    """
+    try:
+        tab_ctrl.select()
+        _emitir(on_progress, "  [diag] select() funcionou na aba.")
+        return True
+    except Exception as exc:
+        _emitir(on_progress, f"  [diag] select() falhou em aba (provavel sem SelectionItemPattern): {exc}")
+
+    try:
+        tab_ctrl.click_input()
+        _emitir(on_progress, "  [diag] click_input() funcionou na aba.")
+        return True
+    except Exception as exc:
+        _emitir(on_progress, f"  Aviso: falha ao selecionar aba — {exc}")
+        return False
+
+
+def _descobrir_abas(
+    pagecontrol_ctrl,
+    locator: ElementLocator,
+    on_progress: Callable[[str], None] | None,
+) -> list:
+    """
+    Retorna a lista de wrappers de "header" de cada aba do TcxPageControl, na
+    ordem visual. Cascata:
+
+      1. children(control_type="TabItem") direto no pagecontrol — se a
+         DevExpress expuser os headers das abas como TabItem.
+      2. children() sem filtro, descartando o(s) que ocupam quase toda a
+         altura do pagecontrol (esse e o pane de conteudo da aba ativa, nao um
+         header) — heuristica best-effort.
+      3. Se nada for encontrado de forma confiavel, retorna [] — o caller cai
+         no fallback de Ctrl+Tab (ver `_ciclar_e_varrer_por_tab`).
+    """
+    try:
+        headers = list(pagecontrol_ctrl.children(control_type="TabItem"))
+        _emitir(on_progress, f"  [diag] children(control_type=TabItem): {len(headers)} candidato(s).")
+        if headers:
+            return headers
+    except Exception as exc:
+        _emitir(on_progress, f"  [diag] children(control_type=TabItem) falhou: {exc}")
+
+    try:
+        candidatos = list(pagecontrol_ctrl.children())
+    except Exception as exc:
+        _emitir(on_progress, f"  [diag] children() do TcxPageControl falhou: {exc}")
+        return []
+
+    pc_rect = _safe_rectangle(pagecontrol_ctrl)
+    _emitir(
+        on_progress,
+        f"  [diag] TcxPageControl.children() sem filtro: {len(candidatos)} candidato(s); "
+        f"rect do pagecontrol={pc_rect}.",
+    )
+    headers = []
+    for idx, c in enumerate(candidatos):
+        rect = _safe_rectangle(c)
+        cls = locator._safe_class(c)
+        ctrl_type = locator._safe_control_type(c)
+        if rect is None or pc_rect is None:
+            _emitir(on_progress, f"  [diag] candidato {idx}: class={cls!r} control_type={ctrl_type!r} sem rectangle — descartado.")
+            continue
+        altura_relativa = (rect[3] - rect[1]) / max(1, pc_rect[3] - pc_rect[1])
+        # heuristica: headers ocupam uma faixa baixa (<35%) da altura total;
+        # o pane de conteudo (TcxTabSheet ativa) ocupa quase tudo.
+        aceito = altura_relativa < 0.35
+        _emitir(
+            on_progress,
+            f"  [diag] candidato {idx}: class={cls!r} control_type={ctrl_type!r} rect={rect} "
+            f"altura_relativa={altura_relativa:.2f} -> {'aceito' if aceito else 'descartado'}.",
+        )
+        if aceito:
+            headers.append(c)
+    return headers
+
+
+def _aba_ativa_titulo(elementos: list[dict]) -> str | None:
+    """Le o title da (unica) TcxTabSheet presente neste passe de varredura."""
+    for el in elementos:
+        if el.get("class_name") == "TcxTabSheet":
+            return el.get("title") or ""
+    return None
+
+
+def _ciclar_e_varrer_por_tab(
+    janela,
+    pagecontrol_ctrl,
+    locator: ElementLocator,
+    incluir_ocultos: bool,
+    on_progress: Callable[[str], None] | None,
+    max_abas: int = 12,
+) -> list[list[dict]]:
+    """
+    Usado quando `_descobrir_abas()` nao retorna headers utilizaveis: varre a
+    aba atual, foca o TcxPageControl e manda Ctrl+Tab, varre de novo, repete —
+    ate detectar que voltou a aba inicial (pelo title da TcxTabSheet ativa) ou
+    ate `max_abas` iteracoes (protecao contra loop infinito se a deteccao de
+    "voltou ao inicio" falhar).
+
+    O `.set_focus()` no pagecontrol antes do Ctrl+Tab e deliberado: sem ele a
+    tecla vai pro foco corrente da janela (ex.: um campo de texto na aba
+    ativa), que normalmente NAO repassa Ctrl+Tab pro page control — suspeito
+    de ser a causa de o Ctrl+Tab nao mudar de aba nas tentativas anteriores.
+
+    Retorna uma lista de listas de elementos, uma por passe/aba.
+    """
+    passes: list[list[dict]] = []
+    titulo_inicial = None
+    for i in range(max_abas):
+        elementos = _varrer_janela(janela, locator, incluir_ocultos, on_progress)
+        passes.append(elementos)
+        titulo_atual = _aba_ativa_titulo(elementos)
+        _emitir(on_progress, f"  [diag] Ctrl+Tab passe {i}: aba ativa = {titulo_atual!r}.")
+        if i == 0:
+            titulo_inicial = titulo_atual
+        elif titulo_atual == titulo_inicial:
+            _emitir(on_progress, "  [diag] titulo da aba voltou ao inicial — ciclo completo, parando.")
+            break  # ciclo completo — voltou pro inicio
+        try:
+            pagecontrol_ctrl.set_focus()
+        except Exception as exc:
+            _emitir(on_progress, f"  [diag] set_focus() no TcxPageControl falhou: {exc}")
+        try:
+            janela.type_keys("^{TAB}")
+        except Exception as exc:
+            _emitir(on_progress, f"  [diag] type_keys Ctrl+Tab falhou: {exc}")
+            break
+    return passes
+
+
+def varrer_todas_as_abas(
+    janela,
+    locator: ElementLocator,
+    incluir_ocultos: bool,
+    on_progress: Callable[[str], None] | None,
+) -> list[dict]:
+    """
+    Varre a janela uma vez por aba de cada TcxPageControl encontrado, mesclando
+    os resultados num unico conjunto de elementos. Se a janela nao tiver
+    TcxPageControl (ou tiver so uma aba), e equivalente a uma unica chamada de
+    `_varrer_janela` — sem custo extra.
+
+    Best-effort: se a selecao de uma aba falhar, registra aviso via
+    `on_progress` e segue para a proxima, preservando o que ja foi coletado.
+    """
+    elementos = _varrer_janela(janela, locator, incluir_ocultos, on_progress)
+
+    todos_ctrls = _arvore_completa(janela, on_progress)
+    pagecontrols = [c for c in todos_ctrls if locator._safe_class(c) == "TcxPageControl"]
+
+    if not pagecontrols:
+        return elementos  # nao ha abas — comportamento identico ao de hoje
+
+    for pc in pagecontrols:
+        _emitir(on_progress, "Detectado TcxPageControl — varrendo abas adicionais...")
+        headers = _descobrir_abas(pc, locator, on_progress)
+
+        if len(headers) <= 1:
+            _emitir(on_progress, "  Headers de aba nao identificados — usando Ctrl+Tab.")
+            passes = _ciclar_e_varrer_por_tab(janela, pc, locator, incluir_ocultos, on_progress)
+            for passe in passes[1:]:  # passes[0] ja esta em elementos
+                elementos, n = mesclar_elementos(elementos, passe)
+                _emitir(on_progress, f"  +{n} elemento(s) novo(s) (Ctrl+Tab).")
+            continue
+
+        _emitir(on_progress, f"  {len(headers)} aba(s) detectada(s).")
+        for i, header in enumerate(headers):
+            ok = _safe_select_tab(header, on_progress)
+            if not ok:
+                _emitir(on_progress, f"  Aviso: nao foi possivel selecionar aba {i + 1}/{len(headers)} — pulando.")
+                continue
+            passe = _varrer_janela(janela, locator, incluir_ocultos, on_progress)
+            elementos, n = mesclar_elementos(elementos, passe)
+            titulo = _aba_ativa_titulo(passe) or f"aba {i + 1}"
+            _emitir(on_progress, f"  Aba '{titulo}': +{n} elemento(s) novo(s).")
+
+    return elementos
+
+
 def mapear_janela(
     titulo: str | None = None,
     *,
@@ -640,6 +860,7 @@ def mapear_janela(
     timeout_janela: float = 30,
     incluir_ocultos: bool = True,
     on_progress: Callable[[str], None] | None = None,
+    varrer_todas_abas: bool = False,
 ) -> Path:
     """
     Conecta ao sistema ou modulo, localiza a janela e exporta controles em JSON.
@@ -651,6 +872,9 @@ def mapear_janela(
         timeout_janela: Segundos para aguardar processo/janela.
         incluir_ocultos: Se True, exporta controles de abas ocultas (is_visible=False).
         on_progress: Callback opcional para feedback na UI.
+        varrer_todas_abas: Se True, alem da aba ativa, percorre e mescla todas as
+            abas de qualquer TcxPageControl encontrado (mais lento — ver
+            `varrer_todas_as_abas`).
 
     Returns:
         Path do arquivo JSON gerado.
@@ -675,7 +899,26 @@ def mapear_janela(
 
     locator = ElementLocator()
     _emitir(on_progress, "Iniciando varredura (telas grandes podem levar 1-3 min)...")
-    elementos = _varrer_janela(janela, locator, incluir_ocultos, on_progress)
+    if varrer_todas_abas:
+        _emitir(on_progress, "Modo 'todas as abas' ativado — pode levar varios minutos.")
+        # Sink dedicado: o on_progress de quem chama pode ser efemero (ex.: um
+        # label de status que se sobrescreve) — este arquivo registra TODA
+        # mensagem (incl. DEBUG) desta varredura, sempre, independente da UI.
+        log_dir = ROOT / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        sink_id = logger.add(
+            log_dir / "mapear_abas_debug.log",
+            level="DEBUG",
+            format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {function}:{line} — {message}",
+            encoding="utf-8",
+            mode="w",
+        )
+        try:
+            elementos = varrer_todas_as_abas(janela, locator, incluir_ocultos, on_progress)
+        finally:
+            logger.remove(sink_id)
+    else:
+        elementos = _varrer_janela(janela, locator, incluir_ocultos, on_progress)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     slug = _slug_titulo(titulo or "", processo)
@@ -727,6 +970,11 @@ def main() -> int:
         action="store_true",
         help="Exportar apenas controles com is_visible=True (padrao: incluir abas ocultas)",
     )
+    parser.add_argument(
+        "--todas-abas",
+        action="store_true",
+        help="Varre automaticamente todas as abas de TcxPageControl (mais lento).",
+    )
     args = parser.parse_args()
 
     setup_logging(log_name="mapear_janela")
@@ -743,6 +991,7 @@ def main() -> int:
             exe_path=args.exe,
             timeout_janela=args.timeout,
             incluir_ocultos=incluir_ocultos,
+            varrer_todas_abas=args.todas_abas,
         )
         print(f"Arquivo gerado: {out_path}")
         return 0

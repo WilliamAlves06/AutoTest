@@ -51,6 +51,13 @@ class FC:
     def window(self, titulo: str, timeout: float = 10.0) -> Window:
         return Window(self._ctx, titulo, timeout=timeout)
 
+    def tab(self, *titulos: str):
+        """Seleciona uma aba do módulo ativo pelo título (ciclando Ctrl+Tab —
+        essas abas não expõem header clicável). Ex.: fc.tab("Estoques") ·
+        aninhado: fc.tab("Livros/Mapas", "Anvisa")."""
+        self._ctx.selecionar_aba(*titulos)
+        return self
+
     # ── acesso ao contexto (avançado) ────────────────────────────
     @property
     def context(self) -> FCContext:

@@ -28,7 +28,7 @@ class _Elemento:
         self.alias = info.get("alias", "?")
 
     def _resolver(self, timeout: float = 10.0):
-        janela = self._ctx.janela_ativa()
+        janela = self._ctx.focar_modulo()   # módulo em primeiro plano antes de agir
         return resolver(janela, self._info, timeout=timeout, label=self.alias)
 
     # ── asserts comuns ───────────────────────────────────────────

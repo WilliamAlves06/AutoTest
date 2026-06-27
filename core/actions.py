@@ -120,6 +120,27 @@ def wait_element(
         f"Elemento '{label}' não encontrado após {timeout}s. Último erro: {last_exc}"
     )
 
+def _trazer_janela_frente(element) -> None:
+    """Traz a janela de topo do elemento pro foreground (restaura + foco).
+
+    O Windows bloqueia o foco num controle filho quando a janela de topo não é a
+    ativa. Como `safe_*` têm @retry, chamar isto a cada tentativa garante a
+    janela em primeiro plano antes do `element.set_focus()`. Nunca quebra."""
+    try:
+        top = element.top_level_parent()
+    except Exception:
+        return
+    try:
+        if top.is_minimized():
+            top.restore()
+    except Exception:
+        pass
+    try:
+        top.set_focus()
+    except Exception:
+        pass
+
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_fixed(0.5),
@@ -129,6 +150,7 @@ def wait_element(
 def safe_click(element, label: str = "botão"):
     """Clica com retry automático."""
     logger.info(f"Clicando: {label}")
+    _trazer_janela_frente(element)
     element.set_focus()
     element.click_input()
 
@@ -140,6 +162,7 @@ def safe_click(element, label: str = "botão"):
 def safe_type(element, text: str, label: str = "campo"):
     """Digita texto com retry automático."""
     logger.info(f"Digitando em [{label}]: {'*' * len(text) if 'senha' in label.lower() else text}")
+    _trazer_janela_frente(element)
     element.set_focus()
     element.type_keys(text, with_spaces=True)
 
@@ -152,6 +175,7 @@ def safe_type(element, text: str, label: str = "campo"):
 def safe_press_keys(element, keys: str, label: str = "tecla"):
     """Envia teclas especiais no mesmo controle (Enter, Tab, etc.)."""
     logger.info(f"Tecla em [{label}]: {keys}")
+    _trazer_janela_frente(element)
     element.set_focus()
     element.type_keys(keys)
     time.sleep(0.15)

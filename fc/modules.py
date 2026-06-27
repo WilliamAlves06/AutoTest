@@ -41,6 +41,8 @@ def _carregar() -> dict[str, dict]:
     if _ARQ.exists():
         try:
             arq = json.loads(_ARQ.read_text(encoding="utf-8"))
+            for removido in arq.get("_removidos", []):
+                dados.pop(removido, None)
             for k, v in arq.items():
                 if k.startswith("_") or not isinstance(v, dict):
                     continue
@@ -61,27 +63,41 @@ def listar_modulos() -> list[str]:
 
 def salvar_modulo(nome: str, exe: str, menu: list[str]) -> Path:
     """Grava/atualiza a inicialização de um módulo em modulos.json."""
+    chave = _chave(nome)
     arq: dict = {}
     if _ARQ.exists():
         try:
             arq = json.loads(_ARQ.read_text(encoding="utf-8"))
         except Exception:
             arq = {}
-    arq[_chave(nome)] = {"exe": exe, "menu": list(menu)}
+    arq[chave] = {"exe": exe, "menu": list(menu)}
+    # se o módulo havia sido removido antes (e é um default embutido), tira da lista de removidos
+    removidos = set(arq.get("_removidos", []))
+    removidos.discard(chave)
+    if removidos:
+        arq["_removidos"] = sorted(removidos)
+    else:
+        arq.pop("_removidos", None)
     _ARQ.write_text(json.dumps(arq, indent=2, ensure_ascii=False), encoding="utf-8")
-    logger.success(f"Módulo '{_chave(nome)}' salvo em {_ARQ}")
+    logger.success(f"Módulo '{chave}' salvo em {_ARQ}")
     return _ARQ
 
 
 def remover_modulo(nome: str) -> None:
-    """Remove um módulo do modulos.json (se presente)."""
-    if not _ARQ.exists():
-        return
-    try:
-        arq = json.loads(_ARQ.read_text(encoding="utf-8"))
-    except Exception:
-        return
-    if _chave(nome) in arq:
-        del arq[_chave(nome)]
-        _ARQ.write_text(json.dumps(arq, indent=2, ensure_ascii=False), encoding="utf-8")
-        logger.success(f"Módulo '{_chave(nome)}' removido de {_ARQ}")
+    """Remove um módulo do modulos.json. Se o módulo for um default embutido
+    (_BUILTIN), marca como removido em '_removidos' — senão ele reapareceria
+    na lista por causa do fallback embutido."""
+    chave = _chave(nome)
+    arq: dict = {}
+    if _ARQ.exists():
+        try:
+            arq = json.loads(_ARQ.read_text(encoding="utf-8"))
+        except Exception:
+            arq = {}
+    arq.pop(chave, None)
+    if chave in _BUILTIN:
+        removidos = set(arq.get("_removidos", []))
+        removidos.add(chave)
+        arq["_removidos"] = sorted(removidos)
+    _ARQ.write_text(json.dumps(arq, indent=2, ensure_ascii=False), encoding="utf-8")
+    logger.success(f"Módulo '{chave}' removido de {_ARQ}")

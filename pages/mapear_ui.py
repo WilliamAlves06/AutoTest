@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tools.mapear_janela import mapear_janela, resolver_entrada_mapeamento
+from tools.mapear_janela import mapear_janela, merge_key, resolver_entrada_mapeamento
 from fc.mapping_store import salvar_mapa, caminho_mapa
 
 C_BG = "#f0f2f5"
@@ -138,6 +138,16 @@ class MapearTab(tk.Frame):
             font=C_FONT,
             activebackground=C_WHITE,
         ).pack(side="left")
+
+        self.var_todas_abas = tk.BooleanVar(value=False)
+        tk.Checkbutton(
+            row_opts,
+            text="Varrer todas as abas automaticamente (mais lento)",
+            variable=self.var_todas_abas,
+            bg=C_WHITE,
+            font=C_FONT,
+            activebackground=C_WHITE,
+        ).pack(side="left", padx=(16, 0))
 
         tk.Label(row_opts, text="Timeout conexao (s):", bg=C_WHITE, font=C_FONT).pack(
             side="left", padx=(16, 6)
@@ -358,6 +368,7 @@ class MapearTab(tk.Frame):
 
         exe_path = self.config_data.get("exe_path", "").strip() or None
         incluir_ocultos = self.var_ocultos.get()
+        varrer_todas_abas = self.var_todas_abas.get()
 
         try:
             titulo, processo = resolver_entrada_mapeamento(titulo, processo)
@@ -392,6 +403,7 @@ class MapearTab(tk.Frame):
                     timeout_janela=timeout,
                     incluir_ocultos=incluir_ocultos,
                     on_progress=self._on_progress,
+                    varrer_todas_abas=varrer_todas_abas,
                 )
                 abs_path = out_path.resolve()
                 with open(abs_path, encoding="utf-8") as f:
@@ -1023,7 +1035,6 @@ class AliasEditorWindow(tk.Toplevel):
         def worker():
             pythoncom.CoInitializeEx(pythoncom.COINIT_MULTITHREADED)
             try:
-                from tools.mapear_janela import mapear_janela
                 out = mapear_janela(
                     self._titulo_busca,
                     processo=self._processo,
@@ -1031,6 +1042,7 @@ class AliasEditorWindow(tk.Toplevel):
                     timeout_janela=30,
                     incluir_ocultos=True,
                     on_progress=_prog,
+                    varrer_todas_abas=True,
                 )
                 mapped = json.loads(Path(out).read_text(encoding="utf-8"))
                 self.after(0, lambda: self._aplicar_merge(mapped))
@@ -1046,10 +1058,10 @@ class AliasEditorWindow(tk.Toplevel):
         if not self.winfo_exists():
             return
         novos = _dedup_elementos(mapped)
-        chaves = {self._merge_key(el) for el, _ in self._linhas}
+        chaves = {merge_key(el) for el, _ in self._linhas}
         adicionados = 0
         for el in novos:
-            k = self._merge_key(el)
+            k = merge_key(el)
             if k in chaves:
                 continue           # já existe (mesmo automation_id / botão) — preserva
             chaves.add(k)
@@ -1059,14 +1071,6 @@ class AliasEditorWindow(tk.Toplevel):
             f"✓ Re-mapeado: {adicionados} novo(s) elemento(s) adicionado(s) "
             f"— total {len(self._linhas)}. Preencha os aliases e salve."
         )
-
-    @staticmethod
-    def _merge_key(el: dict):
-        """Identidade estável p/ mesclagem: automation_id; senão control_type+title+class."""
-        aid = (el.get("automation_id") or "").strip()
-        if aid:
-            return ("aid", aid)
-        return ("ct", el.get("control_type") or "", el.get("title") or "", el.get("class_name") or "")
 
     def _fim_remap(self, msg: str, erro: bool = False) -> None:
         self._remap_em_andamento = False

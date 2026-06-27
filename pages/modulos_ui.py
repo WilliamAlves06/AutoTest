@@ -91,21 +91,17 @@ class ModulosTab(tk.Frame):
         self.entry_exe.pack(fill="x", padx=16, ipady=4)
 
         campo("Passos para abrir (um por linha)",
-              "Vazio = só anexa ao processo já aberto. Teclas: %a=ALT+A · {DOWN} {RIGHT} · {ENTER} · "
-              "{DOWN 3}=3x. Item de menu por índice (livre de resolução): @menuitem:i,j. "
-              "Clique por coordenada (fallback): @click:X,Y. Dica: use 🎬 e CLIQUE no item do menu — "
-              "ele grava @menuitem automaticamente.")
+              "Vazio = só anexa ao processo já aberto. Item de menu por índice (livre de resolução): "
+              "@menuitem:i,j. Clique por coordenada (fallback): @click:X,Y. Teclas avulsas (quando o "
+              "menu exigir): %a=ALT+A · {DOWN} {RIGHT} · {ENTER} · {DOWN 3}=3x.")
         self.txt_teclas = tk.Text(dir_, font=C_MONO, height=6, relief="solid", bd=1)
         self.txt_teclas.pack(fill="x", padx=16, pady=(0, 4))
 
-        # botões de inserção rápida + gravador
+        # gravador: clique no item do menu grava @menuitem automaticamente; teclas também são capturadas
         atalhos = tk.Frame(dir_, bg=C_WHITE)
         atalhos.pack(fill="x", padx=16, pady=(0, 6))
-        for txt, token in (("ALT+A", "%a"), ("↓", "{DOWN}"), ("↑", "{UP}"),
-                           ("→", "{RIGHT}"), ("←", "{LEFT}"), ("Enter", "{ENTER}")):
-            tk.Button(atalhos, text=txt, bg="#eef2ff", fg=C_BLUE, relief="flat",
-                      font=("Segoe UI", 8), cursor="hand2",
-                      command=lambda t=token: self._inserir_token(t)).pack(side="left", padx=2)
+        tk.Label(atalhos, text="Mapeamento automático: clique no item do menu durante a gravação.",
+                 bg=C_WHITE, font=("Segoe UI", 8), fg="#666").pack(side="left")
 
         self.btn_gravar = tk.Button(
             atalhos, text="🎬 Gravar teclas/cliques", bg=C_PURPLE, fg=C_WHITE, relief="flat",

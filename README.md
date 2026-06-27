@@ -3,9 +3,8 @@
 [![CI](https://github.com/WilliamAlves06/AutoTest/actions/workflows/ci.yml/badge.svg)](https://github.com/WilliamAlves06/AutoTest/actions/workflows/ci.yml)
 
 Framework de automação de testes **desktop** para o sistema legado **Formula Certa**
-(Delphi/VCL). O QA escreve testes em comandos simples e legíveis — **sem TAB, sem
-coordenadas de mouse, sem conhecer os detalhes do Delphi** — e a aprovação é
-**obrigatoriamente validada no banco de dados** (a mensagem visual de sucesso não basta).
+(Delphi/VCL). O QA escreve testes em comandos simples e legívei — e a aprovação
+**de dados** (a mensagem visual de sucesso não basta).
 
 ```python
 fc.login()
@@ -335,7 +334,7 @@ Editável pelo app (aba **Modulos**) ou na mão. Lido a cada chamada (edições 
 
 ```json
 {
-  "FCFiliais":  { "exe": "FCFiliais.exe",  "menu": ["%a", "@menuitem:0,0"] },
+  "FCFiliais":  { "exe": "FCFiliais.exe",  "menu": ["@menuitem:0,0"] },
   "FCReceitas": { "exe": "FCReceitas.exe", "menu": ["%a", "{RIGHT}{RIGHT}{ENTER}"] }
 }
 ```
@@ -345,64 +344,139 @@ Editável pelo app (aba **Modulos**) ou na mão. Lido a cada chamada (edições 
 | Passo | Significado |
 |-------|-------------|
 | `"%a"`, `"{DOWN 3}{ENTER}"`, `"f"` | **Teclas** (sintaxe `type_keys`): `%a`=ALT+A, `{DOWN 3}`=3× baixo, `{ENTER}`, letra. |
-| `"@menuitem:i,j"` | **Item de menu por índice** (Win32 `.select()`). **Livre de resolução**, sem texto nem coordenada — *recomendado*. `i`=menu de topo, `j`=subitem. |
+| `"@menuitem:i,j"` | **Item de menu por índice**, acionado com **clique real** calculado via `GetMenuItemRect` (não `%a`/`{ENTER}`/`.select()`). **Livre de resolução**, sem texto nem coordenada fixa — *recomendado*. `i`=menu de topo, `j`=subitem. Não combine com `"%a"` antes — o próprio passo abre o item de topo clicando nele. |
 | `"@click:X,Y"` | **Clique de mouse** na coordenada (fallback; quebra em resoluções diferentes). |
 | `[]` (lista vazia) | Só **anexa** ao processo já aberto, sem navegar. |
 
-> **Por que `@menuitem`?** O menu do Formula Certa é **owner-drawn**: nem Win32 nem UIA
-> expõem os textos dos itens, então não dá para “achar o item Filiais” pelo nome nem
-> clicar de forma estável por coordenada. O `@menuitem:i,j` aciona o **comando interno**
-> do menu pelo índice — funciona em qualquer resolução. Na aba **Modulos**, use
-> **🎬 Gravar teclas/cliques** e **clique** no item do menu: o app descobre o índice
-> (`GetMenuItemRect`) e grava `@menuitem:i,j` sozinho.
+> **Por que `@menuitem` clica em vez de usar `.select()`/`{ENTER}`?** O menu do Formula
+> Certa é **owner-drawn** e alguns itens (ex.: Filiais) validam permissão de módulo de um
+> jeito que só passa com **clique físico** — acionar o mesmo item por `.select()` (Win32)
+> ou `{ENTER}` cai num caminho que dispara "Modulo nao esta cadastrado para esse usuario",
+> mesmo com o índice certo. Por isso `@menuitem:i,j` calcula a posição do item na tela via
+> `GetMenuItemRect` (livre de resolução, sem coordenada fixa) e simula um clique real ali.
+> Na aba **Modulos**, use **🎬 Gravar teclas/cliques** e **clique** no item do menu: o app
+> descobre o índice e grava `@menuitem:i,j` sozinho.
 
 ---
 
 ## 📖 Referência da DSL (`fc.`)
 
+> Esta seção é pra quem **só escreve teste** — você não precisa saber como cada comando
+> funciona por dentro (UIA, alias-map, etc.). Trate cada um como uma instrução que você
+> daria pra alguém testando manualmente: "digite tal coisa", "clique em tal botão",
+> "confira no banco".
+
 ```python
 from fc import fc
 ```
 
-| Categoria | Comando | O que faz |
-|-----------|---------|-----------|
-| Navegação | `fc.login()` | Abre/loga no Formula Certa, guarda a janela principal. |
-| | `fc.open_module("FCFiliais")` | Anexa ou abre o módulo (via `modulos.json`) e carrega os aliases. |
-| Campos | `fc.field("alias").type("texto")` | Foca o campo e digita (sem TAB). |
-| | `.press("{ENTER}")` | Envia teclas no campo (commit, não navegação). |
-| | `.clear()` | Limpa o campo. |
-| | `.get_value()` | Lê o conteúdo atual. |
-| | `.should_have_value("x")` | Assert: o campo contém o valor. |
-| | `.should_exist()` / `.should_be_visible()` | Asserts de presença/visibilidade. |
-| Botões | `fc.button("alias").click()` / `.double_click()` | Clica no botão. |
-| Janelas | `fc.window("Confirmação").ok()` / `.close()` / `.press("...")` | Trata modais/avisos. |
-| Banco | `fc.db.query("nome_sql", {"param": "v"})` | Roda `database/queries/nome_sql.sql` → `dict`. |
-| | `fc.db.assert_saved(query=..., params=..., expected={...})` | **Aprova só se o banco bater** com o esperado. |
-| Sessão | `fc.reset()` | Limpa o estado (usar no fim do teste). |
+### Navegação — entrar no sistema e abrir telas
 
-Asserts `should_*` e `assert_saved` falham com **AssertionError** (estilo Cypress).
+| Comando | O que faz |
+|---------|-----------|
+| `fc.login()` | Faz login no Formula Certa. |
+| `fc.open_module("FCFiliais")` | Abre o módulo (ou aproveita se já estiver aberto). |
+| `fc.tab("Estoques")` | Clica na aba "Estoques" da tela atual. Sub-aba: `fc.tab("Geral", "Dados Adicionais")`. |
+
+### Campos — `fc.field("alias")`
+
+Use para **o que você digita**: caixas de texto, combos, etc. O `"alias"` é o nome que
+você deu ao campo na aba **Mapear**.
+
+| Comando | O que faz |
+|---------|-----------|
+| `.type("texto")` | Digita no campo. |
+| `.press("{ENTER}")` | Envia uma tecla (ex.: confirmar uma busca). |
+| `.clear()` | Limpa o campo. |
+| `.get_value()` | Lê o que está escrito no campo agora. |
+| `.should_have_value("10")` | Verifica se o campo contém exatamente "10" — se não, o teste **reprova**. |
+| `.should_exist()` | Verifica se o campo existe na tela. |
+| `.should_be_visible()` | Verifica se o campo está visível. |
+
+### Botões — `fc.button("alias")`
+
+Use para **o que você clica**: salvar, consultar, ok, etc.
+
+| Comando | O que faz |
+|---------|-----------|
+| `.click()` | Clica no botão. |
+| `.double_click()` | Clique duplo. |
+| `.should_exist()` / `.should_be_visible()` | Mesmas verificações dos campos. |
+
+> 💡 **Dica:** `field` e `button` são só rótulos pra deixar o teste mais fácil de ler —
+> os dois sabem `.click()`. Use `field` pra algo que você digita e `button` pra algo que
+> você clica; se trocar por engano, o teste funciona do mesmo jeito.
+
+### Janelas/diálogos — `fc.window("Título")`
+
+Use para confirmações, avisos e modais que aparecem por cima da tela.
+
+| Comando | O que faz |
+|---------|-----------|
+| `.ok()` | Confirma o diálogo (equivale a apertar Enter). |
+| `.close()` | Fecha o diálogo (equivale a Alt+F4). |
+| `.press("{ENTER}")` | Envia uma tecla pro diálogo. |
+| `.should_exist()` | Verifica se o diálogo apareceu. |
+
+### Banco — `fc.db`
+
+| Comando | O que faz |
+|---------|-----------|
+| `fc.db.query("nome_sql", {"param": "v"})` | Busca **um** registro no banco, pra você comparar. Devolve `None` se não achar. |
+| `fc.db.client.query_all("nome_sql", {"param": "v"})` | Igual, mas devolve **todas** as linhas (lista) — pra grids/múltiplos registros. |
+| `fc.db.assert_saved(query=..., params=..., expected={...})` | Busca **e** já **aprova/reprova** o teste sozinho, comparando com o esperado. |
+
+> Detalhes e exemplos completos na seção [Validação em banco](#-validação-em-banco-database) abaixo.
+
+### Sessão
+
+| Comando | O que faz |
+|---------|-----------|
+| `fc.reset()` | Encerra a sessão — chame sempre no fim do teste (no `finally`). |
+
+> Todo comando devolve o próprio elemento, então dá pra **encadear**:
+> `fc.field("produto").type("123").should_have_value("123")`.
+>
+> Os comandos `should_*` e `assert_saved` **reprovam o teste com uma mensagem clara**
+> quando algo não bate — é assim que você sabe o motivo da falha sem precisar investigar.
 
 ---
 
 ## 🗄️ Validação em banco (`database/`)
 
-Pacote com **abstração de driver** (hoje `fdb`; troca futura para `firebird-driver`
-isolada em `connection.py`).
+> De novo: aqui é só **o que fazer**, não como funciona por dentro. Pense em `fc.db`
+> como "ir conferir no banco" — o resto (driver, conexão, SQL) já está pronto.
 
-- **Queries reutilizáveis** em `database/queries/*.sql` com parâmetros nomeados:
-  ```sql
-  -- database/queries/filial_consulta.sql
-  SELECT CDFIL, DESCRFIL, RAZAO, NRCNPJ FROM FC01000 WHERE CDFIL = :codigo
-  ```
-- **`FirebirdClient.query("filial_consulta", {"codigo": "10"})`** → `dict` `{COLUNA: valor}`
-  (converte `:nome` → `?` por baixo).
-- **`comparar(obtido, esperado)`** → lista no formato de `core/reporter.imprimir_resultado()`
-  (tabela `CAMPO | ESPERADO | OBTIDO | STATUS`).
-- **`assert_saved(query, expected, params)`** → roda, compara, imprime a tabela e
-  **levanta AssertionError** se algum campo divergir. É a regra de aprovação para fluxos
-  de inclusão/edição.
+### `fc.db.query("nome_sql", {"param": "valor"})` — buscar um registro
 
-Exemplo (fluxo que salva um registro):
+Cada query reutilizável é um arquivo `.sql` em `database/queries/`. Você chama pelo
+**nome do arquivo, sem `.sql`**, e passa um dict com os parâmetros que o SQL espera:
+
+```sql
+-- database/queries/filial_consulta.sql
+SELECT CDFIL, DESCRFIL, RAZAO, NRCNPJ FROM FC01000 WHERE CDFIL = :codigo
+```
+```python
+registro = fc.db.query("filial_consulta", {"codigo": "10"})
+# registro = {"CDFIL": "10", "DESCRFIL": "...", "RAZAO": "...", "NRCNPJ": "..."}
+# registro é None se a filial 10 não existir no banco
+```
+
+Regras simples:
+- A chave do dict (`"codigo"`) tem que ter o **mesmo nome** do `:placeholder` no `.sql`
+  (`:codigo`) — é assim que o valor chega até a query.
+- O resultado é a **primeira linha** encontrada, com as colunas em **maiúsculas** (como
+  o Firebird devolve) — ou `None`, se não achar nada. Sempre trate o caso de `None`
+  antes de usar o resultado.
+- Precisa de mais de uma linha (ex.: validar um grid)? Use `fc.db.client.query_all(...)`
+  — mesma ideia, mas devolve **todas** as linhas como uma lista de dicts.
+
+### `fc.db.assert_saved(...)` — buscar **e** aprovar/reprovar sozinho
+
+É o `fc.db.query(...)` de cima, só que automatizado: ele busca o registro, compara
+**campo a campo** com o que você espera, imprime uma tabela (`CAMPO | ESPERADO | OBTIDO
+| STATUS`, com ✔/✘) e **reprova o teste** (`AssertionError`) se qualquer campo não bater.
+
 ```python
 fc.button("salvar").click()
 fc.db.assert_saved(
@@ -412,8 +486,15 @@ fc.db.assert_saved(
 )
 ```
 
+**Quando usar qual:**
+
+| Use... | Quando... |
+|--------|-----------|
+| `fc.db.query(...)` | Você quer **olhar** o registro e decidir o que fazer (ex.: comparar manualmente o que está na tela, num fluxo de **consulta**). |
+| `fc.db.assert_saved(...)` | Você só quer que o teste **aprove ou reprove sozinho** comparando com valores esperados (ex.: ao fim de um fluxo de **inclusão/edição** que salva dados). |
+
 > Configuração do banco em `database/connection.py` (`DB_CONFIG`: host, caminho do
-> `.ib`/`.fdb`, usuário, senha).
+> `.ib`/`.fdb`, usuário, senha) — não precisa tocar nisso pra escrever testes.
 
 ---
 
@@ -497,7 +578,8 @@ em `logs/screenshots/`.
 | `Alias 'x' não existe no módulo` | O alias não está no alias-map | Aba **Mapear → Editar aliases**, crie/renomeie e salve. |
 | `Não foi possível localizar o elemento` | Localizador desatualizado (tela mudou) | **🔄 Re-mapear (mesclar)** ou recapturar o campo. |
 | `FCXxxx.exe não está aberto e não há menu configurado` | `menu` vazio em `modulos.json` e módulo fechado | Aba **Modulos** → grave a abertura (🎬) clicando no item do menu (`@menuitem`). |
-| Abertura do módulo não funciona com Enter | Item de menu Delphi (owner-drawn) ignora Enter | Use `@menuitem:i,j` (índice Win32) em vez de `{ENTER}` — grave pelo 🎬 clicando no item. |
+| Abertura do módulo não funciona com Enter | Item de menu Delphi (owner-drawn) ignora Enter | Use `@menuitem:i,j` em vez de `{ENTER}` — grave pelo 🎬 clicando no item. |
+| Diálogo "Atenção! Modulo nao esta cadastrado para esse usuario" ao abrir módulo (mesmo no item certo) | O item foi acionado via `.select()`/Enter em vez de clique físico — alguns itens só validam permissão corretamente com clique real | `@menuitem:i,j` já resolve isso (clica de verdade, calculado via `GetMenuItemRect`); **não combine com `"%a"` antes** — é redundante e pode reabrir o mesmo caminho do Enter. |
 | Realce/captura demora muito | (já otimizado) conexão fria | O 1º clique conecta (~0,5 s); os seguintes são instantâneos (cache). |
 | Reprovou mas a tela mostrou “salvo” | É o esperado — validação é no banco | Confira a query/`expected`; ajuste a tabela/colunas reais. |
 | `Filial/registro não existe no banco` | Tabela/coluna erradas na query | Ajuste o `.sql` em `database/queries/`. |
