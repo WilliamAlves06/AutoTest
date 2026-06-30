@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoTest — QA Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/theme.css">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div id="shell">
+
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="mark">✓</div>
+      <div>
+        <div class="name">AutoTest</div>
+        <div class="sub">QA Studio</div>
+      </div>
+    </div>
+
+    <div class="menu-label">MENU</div>
+    <nav class="menu">
+      <div class="item active" data-screen="testes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v6.5L4.6 17.8A2 2 0 0 0 6.3 21h11.4a2 2 0 0 0 1.7-3.2L14 9.5V3"/><path d="M7.2 15h9.6"/></svg>
+        <span>Testes</span>
+      </div>
+      <div class="item" data-screen="recorder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/></svg>
+        <span>Recorder</span>
+      </div>
+      <div class="item" data-screen="mapear">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/></svg>
+        <span>Mapear</span>
+      </div>
+      <div class="item" data-screen="modulos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></svg>
+        <span>Módulos</span>
+      </div>
+      <div class="item" data-screen="config">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="8" x2="20" y2="8"/><circle cx="10" cy="8" r="2.6"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.6"/></svg>
+        <span>Configurações</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="status-box">
+        <div class="line1"><span class="dot"></span>FórmulaCerta 6.0</div>
+        <div class="line2">conectado · Firebird</div>
+      </div>
+      <div class="signature">
+        <div class="by">by <b>fagrontech</b></div>
+        <div class="ver">v2.0</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="content">
+
+    <section class="screen active" id="screen-testes">
+      <div class="screen-head">
+        <div>
+          <h1>Execução de Testes</h1>
+          <div class="subtitle">Selecione suítes e rode seus fluxos automatizados no Formula Certa</div>
+        </div>
+        <div class="actions">
+          <button class="btn icon" id="btn-reload" title="Recarregar suítes">↻</button>
+          <input class="input" id="busca-suite" placeholder="🔍  Buscar suíte..." style="width:190px;">
+          <button class="btn ghost-green" id="btn-run-all-top">↻  Executar todos</button>
+        </div>
+      </div>
+
+      <div class="hero-row">
+        <div class="hero-card">
+          <div class="gauge" id="gauge">
+            <div class="inner"><div class="val" id="gauge-val">0%</div><div class="cap">SUCESSO</div></div>
+          </div>
+          <div class="hero-info">
+            <div class="label">Resultado da execução</div>
+            <div class="nums">
+              <span class="pass" id="num-pass">0</span>
+              <span class="total" id="num-total">/ 0</span>
+              <span class="word">aprovados</span>
+            </div>
+            <div class="run-row">
+              <button class="btn primary" id="btn-run-all">▶ Executar tudo</button>
+              <span class="running-flag" id="running-flag" style="display:none;"><span class="spinner"></span>executando fluxos...</span>
+            </div>
+          </div>
+        </div>
+        <div class="tiles">
+          <div class="tile pass">
+            <div><div class="cap">Fluxos aprovados em banco</div><div class="val" id="tile-pass">0</div></div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4.5 4.5L19 7"/></svg>
+          </div>
+          <div class="tile fail">
+            <div><div class="cap" id="tile-fail-cap">Reprovados</div><div class="val" id="tile-fail">0</div></div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="suites-label">Suítes</div>
+      <div class="chips" id="chips"></div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div class="tab active" data-tab="resumo">Resultados</div>
+          <div class="tab" data-tab="falhas">Falhas</div>
+          <div class="tab" data-tab="log">Log completo</div>
+          <div style="margin-left:auto; display:flex; gap:8px;">
+            <button class="btn subtle" id="btn-clear" style="height:32px;">Limpar resultados</button>
+            <button class="btn subtle" id="btn-run-suite" style="height:32px; background:var(--bg-panel-2);">▶ Rodar suíte</button>
+          </div>
+        </div>
+        <div class="panel-body" id="feed"></div>
+        <pre id="log-view"></pre>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-recorder">
+      <div class="screen-head">
+        <div>
+          <h1>Recorder</h1>
+          <div class="subtitle">Grave cliques e digitação — gera o teste já na DSL <span style="font-family:var(--font-mono);color:var(--green-soft);">fc</span></div>
+        </div>
+        <div class="actions">
+          <input class="input" id="rec-test-name" value="Teste_Gravado" style="width:170px;">
+          <button class="btn rec-btn" id="btn-rec-toggle"><span class="rdot"></span><span id="rec-btn-label">Iniciar</span></button>
+        </div>
+      </div>
+
+      <div class="assert-bar">
+        <span style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--txt-muted);text-transform:uppercase;">Verificações</span>
+        <div class="assert-chip" data-assert="visible">✓ visível</div>
+        <div class="assert-chip" data-assert="text">✓ texto</div>
+        <div class="assert-chip" data-assert="value">✓ valor</div>
+        <div class="module-flag">módulo: <b id="rec-process">—</b></div>
+      </div>
+
+      <div class="cols-5-7">
+        <div class="panel">
+          <div class="panel-head">
+            <div style="font-size:14.5px;font-weight:700;">Ações capturadas</div>
+            <span id="rec-count" style="margin-left:auto;font-size:11.5px;color:var(--txt-faint);">0</span>
+            <button class="btn subtle" id="btn-rec-undo" style="height:28px;font-size:12px;margin-left:10px;">↩ Desfazer última</button>
+            <button class="btn subtle" id="btn-rec-clear" style="height:28px;font-size:12px;margin-left:6px;">🗑 Limpar tudo</button>
+          </div>
+          <div class="panel-body" id="rec-feed" style="max-height:420px;overflow:auto;"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <span style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--txt);">teste gerado ao vivo</span>
+            <button class="btn primary" id="btn-rec-save" style="margin-left:auto;height:32px;">💾 Salvar .py</button>
+          </div>
+          <pre id="code-view"></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-mapear">
+      <div class="screen-head">
+        <div>
+          <h1>Mapear</h1>
+          <div class="subtitle">Fotografe a janela do Formula Certa e dê nomes fáceis aos campos</div>
+        </div>
+        <div class="actions">
+          <button class="btn subtle" id="btn-remap" style="background:var(--bg-panel-2);">↻ Re-mapear (mesclar)</button>
+          <button class="btn primary" id="btn-scan">🎯 Mapear agora</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+          <div>
+            <div class="card-title" style="font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--txt-muted);">Alvo do mapeamento</div>
+            <div style="font-size:13px;color:var(--txt-dim);margin-top:6px;max-width:520px;">Escolha o módulo e clique <span style="color:var(--green-soft);font-weight:700;">Mapear agora</span> — os campos da janela em foco serão fotografados.</div>
+          </div>
+          <div class="module-flag" style="background:var(--bg-panel-2);border-color:rgba(57,181,74,.3);">
+            <span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);"></span>
+            módulo: <b id="map-modulo">—</b>
+          </div>
+        </div>
+        <div class="chips" id="map-targets" style="margin-top:15px; margin-bottom:0;"></div>
+      </div>
+
+      <pre class="scan-log" id="scan-log" style="display:none;margin-bottom:14px;"></pre>
+
+      <div class="cols-4-8">
+        <div class="stack">
+          <div class="card">
+            <div class="card-title" style="font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--txt-muted);margin-bottom:14px;">Janela mapeada</div>
+            <div class="kv-row"><span class="k">Módulo</span><span class="v" id="map-info-modulo">—</span></div>
+            <div class="kv-row"><span class="k">Janela</span><span class="v" id="map-info-janela">—</span></div>
+            <div class="kv-row"><span class="k">Backend</span><span class="v" style="color:var(--txt);">UIA · pywinauto</span></div>
+            <div class="kv-row"><span class="k">Elementos</span><span class="v" style="color:var(--green-soft);" id="map-info-count">0 nomeados</span></div>
+          </div>
+          <div class="warn-box">
+            <div class="head"><span class="dot"></span>Limitação Delphi</div>
+            <div class="body">Rótulos <span style="font-family:var(--font-mono);">TLabel</span> são desenhados no canvas e não aparecem no UIA. Use o <span style="font-weight:700;color:var(--amber-soft);">👁 realce</span> para identificar o campo na tela.</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div style="font-size:14.5px;font-weight:700;">Editor de aliases</div>
+            <button class="btn subtle" id="btn-capture" style="margin-left:auto;height:32px;background:var(--bg-panel-2);">🎯 Capturar manual</button>
+            <button class="btn ghost-green" id="btn-save-map" style="height:32px;">✓ Salvar</button>
+          </div>
+          <div class="panel-body">
+            <div class="table-head"><div>Alias</div><div>Tipo</div><div>Localizador</div><div style="text-align:right;">Ações</div></div>
+            <div id="alias-rows"></div>
+            <div class="dashed-add" id="add-alias-hint" style="display:none;">+ Clique "Capturar manual" e clique no campo no Formula Certa</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-modulos">
+      <div class="screen-head">
+        <div>
+          <h1>Módulos</h1>
+          <div class="subtitle">Cadastre como cada módulo abre a partir da tela principal</div>
+        </div>
+        <div class="actions">
+          <button class="btn subtle" id="btn-mod-novo" style="background:var(--bg-panel-2);">+ Novo módulo</button>
+        </div>
+      </div>
+
+      <div class="cols-7-5">
+        <div class="card" style="padding:14px;">
+          <div id="mod-list"></div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="field">
+              <label>Nome do módulo</label>
+              <input class="input" id="mod-nome" placeholder="ex.: FCEstoque" style="width:100%;height:42px;">
+              <div class="hint">É a chave usada em <span style="font-family:var(--font-mono);">fc.open_module("...")</span></div>
+            </div>
+            <div class="field">
+              <label>Executável</label>
+              <input class="input" id="mod-exe" placeholder="ex.: FCEstoque.exe" style="width:100%;height:42px;">
+            </div>
+            <div class="field">
+              <label>Passos de menu (um por linha)</label>
+              <textarea id="mod-steps" placeholder="@menuitem:0,1"></textarea>
+              <div class="hint">@menuitem:i,j (recomendado) · @click:X,Y (fallback frágil) · teclas avulsas: %a, {RIGHT}, {ENTER}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <button class="btn primary" id="btn-mod-salvar">💾 Salvar</button>
+              <button class="btn subtle" id="btn-mod-testar" style="background:var(--bg-panel-2);">▶ Testar abertura</button>
+              <button class="btn subtle" id="btn-mod-gravar" style="background:var(--bg-panel-2);">🎯 Gravar teclas/cliques</button>
+              <button class="btn subtle" id="btn-mod-remover" style="background:var(--red-tint);color:var(--red-soft);">🗑 Remover</button>
+            </div>
+            <div id="mod-status" style="margin-top:10px;font-size:12.5px;color:var(--txt-dim);"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><span style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--txt);">modulos.json</span></div>
+            <pre class="scan-log" id="mod-json" style="margin:14px;max-height:160px;"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-config">
+      <div class="screen-head">
+        <div>
+          <h1>Configurações</h1>
+          <div class="subtitle">Caminhos e credenciais — configure uma vez só</div>
+        </div>
+      </div>
+
+      <div class="stack" style="max-width:760px;">
+        <div class="card">
+          <div class="card-title">Aplicação</div>
+          <div class="card-sub">Caminho do Formula Certa</div>
+          <div class="field" style="margin-bottom:0;">
+            <label>exe_path</label>
+            <input class="input" id="cfg-exe-path" style="width:100%;height:44px;">
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Credenciais</div>
+          <div class="card-sub">Vão para o .env — nunca versionadas</div>
+          <div class="field-row">
+            <div class="field" style="margin-bottom:0;">
+              <label>FC_LOGIN</label>
+              <input class="input" id="cfg-login" style="width:100%;height:44px;">
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label>FC_SENHA</label>
+              <div class="input-icon-wrap">
+                <input class="input" id="cfg-senha" type="password" style="width:100%;height:44px;">
+                <button class="icon-btn" id="btn-toggle-senha" style="position:absolute;right:6px;">👁</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Testes</div>
+          <div class="card-sub">Pastas base dos fluxos e do recorder</div>
+          <div class="field">
+            <label>base</label>
+            <input class="input" id="cfg-base" style="width:100%;height:44px;">
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>recorder.output_dir</label>
+            <input class="input" id="cfg-recorder-dir" style="width:100%;height:44px;">
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:14px;">
+          <button class="btn primary" id="btn-cfg-save">💾 Salvar configurações</button>
+          <span style="font-size:12.5px;color:var(--txt-faint);">Caminhos → config.json · segredos → .env</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script src="/js/app.js"></script>
+<script src="/js/testes.js"></script>
+<script src="/js/recorder.js"></script>
+<script src="/js/mapear.js"></script>
+<script src="/js/modulos.js"></script>
+<script src="/js/config.js"></script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+/* theme.css — design tokens do AutoTest QA Studio (extraídos do mockup). */
+:root {
+  --bg-app: #0b0f0c;
+  --bg-sidebar: #080c09;
+  --bg-panel: #11160f;
+  --bg-panel-2: #0f1510;
+  --bg-code: #0a0e0a;
+  --bg-hover: #171f18;
+
+  --border: #1e2820;
+  --border-soft: #1a221c;
+
+  --txt: #e9efe8;
+  --txt-dim: #94a395;
+  --txt-faint: #7d8c7e;
+  --txt-muted: #5e6d5f;
+
+  --green: #3fbe52;
+  --green-dk: #2f9e42;
+  --green-bright: #dff7e2;
+  --green-soft: #86d792;
+  --green-tint: rgba(57, 181, 74, .12);
+  --green-dark-txt: #06210d;
+
+  --red: #f06363;
+  --red-soft: #ff8585;
+  --red-tint: rgba(240, 99, 99, .15);
+
+  --amber: #f5b13d;
+  --amber-soft: #f5c97a;
+  --amber-tint: rgba(245, 177, 61, .1);
+
+  --blue: #4ea1ff;
+  --purple: #a855f7;
+
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-pill: 999px;
+
+  --font: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg-app); }
+body {
+  font-family: var(--font);
+  color: var(--txt);
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: #324134; background-clip: padding-box; }
+
+@keyframes recpulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.82); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes rowin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

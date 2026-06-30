@@ -19,19 +19,13 @@ Pré-requisitos para rodar em produção:
 """
 
 import sys
-from pathlib import Path
 
 try:
     import pytest
 except ImportError:
     pytest = None
-from loguru import logger
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from core.logging_setup import setup_logging
-from core.actions import screenshot_on_failure
-from fc import fc
+from autotest import *
 from data import receitas as dados
 
 # ─────────────────────────────────────────

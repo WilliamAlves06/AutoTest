@@ -34,8 +34,11 @@ _ROOT = Path(__file__).resolve().parent.parent
 MAPPINGS_DIR = _ROOT / "mappings"
 
 # Campos de localização preservados por elemento no alias-map.
+# `aba`: caminho de abas (externa->interna) dona do campo — o playback seleciona a
+# aba antes de interagir, e desambigua aliases iguais entre abas distintas.
 _CAMPOS_LOCALIZADOR = (
     "automation_id", "class_name", "title", "control_type", "found_index", "instance",
+    "aba",
 )
 
 

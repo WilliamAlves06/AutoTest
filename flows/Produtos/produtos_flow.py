@@ -1,22 +1,10 @@
 import sys
 import time
-from pathlib import Path
 
-from loguru import logger
 from pywinauto import Application
 
-# Adiciona raiz no path para imports relativos
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from core.logging_setup import setup_logging
-from core.actions import (
-    wait_element,
-    wait_window,
-    wait_app_by_exe,
-    safe_click,
-    safe_type,
-    screenshot_on_failure,
-)
+from autotest import *
+from core.actions import wait_element, wait_window, wait_app_by_exe, safe_click, safe_type
 from data import produtos as dados
 
 # ========================= CONFIGURAÇÕES =========================

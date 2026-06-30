@@ -10,6 +10,8 @@ pytest>=8.0
 pytest-html>=4.1
 python-dotenv>=1.0
 fdb>=2.0
+fastapi>=0.110
+uvicorn[standard]>=0.29
 
 # Qualidade de código (CI)
 ruff>=0.4

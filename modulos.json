@@ -14,5 +14,11 @@
   },
   "_removidos": [
     "FCReceitas"
-  ]
+  ],
+  "FCFornecedores": {
+    "exe": "FCFornecedores.exe",
+    "menu": [
+      "@menuitem:0,1"
+    ]
+  }
 }

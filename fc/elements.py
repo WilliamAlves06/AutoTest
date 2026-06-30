@@ -29,7 +29,24 @@ class _Elemento:
 
     def _resolver(self, timeout: float = 10.0):
         janela = self._ctx.focar_modulo()   # módulo em primeiro plano antes de agir
+        self._garantir_aba()                # seleciona a aba dona do campo, se houver
         return resolver(janela, self._info, timeout=timeout, label=self.alias)
+
+    def _garantir_aba(self) -> None:
+        """Se o campo mora numa aba, traz essa aba à frente antes de resolver.
+
+        `aba` é o caminho externa→interna gravado no alias-map; reaproveita
+        `ctx.selecionar_aba` (Ctrl+Tab + leitura do TcxTabSheet visível). É no-op
+        para campos fora de abas (toolbar, consulta) e barato quando a aba já está
+        ativa (`selecionar_aba` sai cedo se o título visível já confere)."""
+        aba = self._info.get("aba")
+        if not aba:
+            return
+        titulos = aba if isinstance(aba, (list, tuple)) else [aba]
+        try:
+            self._ctx.selecionar_aba(*titulos)
+        except Exception as exc:  # noqa: BLE001 — segue e deixa o resolver tentar
+            logger.warning(f"Não consegui selecionar a aba {list(titulos)} de '{self.alias}': {exc}")
 
     # ── asserts comuns ───────────────────────────────────────────
     def should_exist(self, timeout: float = 10.0):

@@ -1,33 +1,17 @@
 import sys
 import time
-from pathlib import Path
+
 from pywinauto import Application
-from loguru import logger
 
 try:
     import pytest
 except ImportError:
     pytest = None
 
-try:
-    import fdb
-except ImportError:
-    fdb = None
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
+from autotest import *
 from core.config import EXE_PATH, LOGIN, SENHA
-from core.logging_setup import setup_logging
 from core.login_flow import login_ou_obter_principal
-from core.actions import (
-    wait_element,
-    wait_window,
-    wait_app_by_exe,
-    safe_click,
-    safe_type,
-    screenshot_on_failure,
-)
-from core.reporter import imprimir_inicio, imprimir_etapa, imprimir_resultado
+from core.actions import wait_element, wait_window, wait_app_by_exe, safe_click, safe_type
 from database.connection import conectar
 from data import notas as dados
 

@@ -103,6 +103,16 @@ class FCCodeGenerator:
         """{modulo: [elementos novos]} descobertos no último generate()."""
         return {m: list(r.novos.values()) for m, r in self._resolvers.items() if r.novos}
 
+    def generate_function(self, actions: list[DetectedAction], test_name: str = "Teste_Gravado") -> str:
+        """Só a função executar() — para preview/cola rápida (sem imports/pytest)."""
+        self._resolvers = {}
+        self._janela_por_modulo = {}
+        self._aliases_injetados = {}
+        passos = self._gerar_passos(actions)
+        ind = "    "
+        corpo = "\n".join(ind + p if p else "" for p in passos)
+        return f"def executar() -> None:\n{corpo}"
+
     # ── geração dos passos ───────────────────────────────────────
     def _gerar_passos(self, actions: list[DetectedAction]) -> list[str]:
         linhas: list[str] = ["fc.login()"]

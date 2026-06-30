@@ -157,6 +157,7 @@ class ActionDetector:
         # igual ao editor) e módulo -> {alias: rect} (fallback por posição).
         self._alias_cache: dict[str, dict[int, str]] = {}
         self._rect_cache: dict[str, dict] = {}
+        self._aba_rect_cache: dict[str, dict] = {}   # módulo -> {alias: (aba, rect)}
         # worker dedicado (COM próprio) que resolve o alias-map -> {HWND: alias}.
         self._alias_req: queue.Queue = queue.Queue()
         self._alias_evt: dict[str, threading.Event] = {}   # módulo -> pronto
@@ -176,6 +177,7 @@ class ActionDetector:
         self._alt_pressed = False
         self._alias_cache = {}   # nova sessão -> HWNDs novos -> recasa o mapa
         self._rect_cache = {}
+        self._aba_rect_cache = {}
         self._alias_evt = {}
         self._alias_pedidos = set()
         while not self._queue.empty():
@@ -262,7 +264,14 @@ class ActionDetector:
         if button != pynput_mouse.Button.left:
             return
         self._flush_keys()
-        threading.Thread(target=self._resolve_click, args=(x, y), daemon=True).start()
+        # Carimba JÁ a hora do clique: a resolução roda numa thread que pode
+        # bloquear segundos (foco + cache de aliases), então não dá para usar a
+        # hora em que a ação termina — senão o clique entra na lista DEPOIS da
+        # digitação/Enter que vieram pelo teclado e o codegen perde a ordem.
+        clicked_at = time.time()
+        threading.Thread(
+            target=self._resolve_click, args=(x, y, clicked_at), daemon=True
+        ).start()
 
     def _on_win32_special_key(self, type_key: str) -> None:
         if self._running:
@@ -321,7 +330,9 @@ class ActionDetector:
             return False
         return (time.time() - self._last_action_time) < _MENU_CLICK_SUPPRESS_SEC
 
-    def _resolve_click(self, x: int, y: int) -> None:
+    def _resolve_click(self, x: int, y: int, clicked_at: Optional[float] = None) -> None:
+        if clicked_at is None:
+            clicked_at = time.time()
         if self._should_suppress_menu_click():
             return
 
@@ -360,7 +371,7 @@ class ActionDetector:
                 action_type="assert", assert_kind=kind, element=info, text=valor,
                 process_name=process_name,
                 window_title=info.window_title if info else None,
-                timestamp=time.time(), resolved=resolved, _x=x, _y=y,
+                timestamp=clicked_at, resolved=resolved, _x=x, _y=y,
             ))
             return
 
@@ -369,7 +380,7 @@ class ActionDetector:
             element=info,
             process_name=process_name,
             window_title=info.window_title if info else None,
-            timestamp=time.time(),
+            timestamp=clicked_at,
             resolved=resolved,
             _x=x,
             _y=y,
@@ -532,10 +543,11 @@ class ActionDetector:
     def _anexar_alias(self, window, process_name, info, wrapper, x: int, y: int) -> None:
         """Casa o clique a um alias do mapa.
 
-        PRINCIPAL: o worker dedicado já resolveu o mapa -> {HWND: alias} (via
-        child_window, igual ao editor). Aqui só pega o HWND do elemento clicado e
-        faz lookup — não conecta nada (conectar por clique dá deadlock).
-        FALLBACK: posição relativa à janela, se o mapa tiver `rect`.
+        PRIMÁRIO: aba ativa (ancestrais do elemento clicado) + posição. O `rect` é
+        único DENTRO de cada aba, então isso é determinístico e não depende de
+        found_index (que reinicia por aba e colidia entre abas) nem de automation_id
+        (volátil). FALLBACKS: cache {HWND: alias} resolvido ao vivo e, por fim,
+        posição sem filtro de aba (mapas antigos sem `aba`).
         """
         if info is None:
             return
@@ -543,7 +555,23 @@ class ActionDetector:
         if not modulo:
             return
 
-        # garante que o worker está construindo (idempotente) e espera limitado.
+        origem = self._origem_janela(window)
+
+        # PRIMÁRIO: aba ativa + posição (rect único por aba).
+        if origem is not None:
+            aba_ativa = self._aba_do_wrapper(wrapper)
+            relx, rely = x - origem[0], y - origem[1]
+            alias = self._alias_por_aba_posicao(modulo, aba_ativa, relx, rely)
+            if alias:
+                info.matched_alias = alias
+                try:
+                    info.handle = int(wrapper.handle)
+                except Exception:
+                    pass
+                _dbg(f"  match aba={aba_ativa} pos=({relx},{rely}) -> alias={alias}")
+                return
+
+        # FALLBACK 1: cache {HWND: alias} resolvido ao vivo pelo worker dedicado.
         self._pedir_cache(modulo)
         h = None
         if wrapper is not None:
@@ -562,8 +590,7 @@ class ActionDetector:
                 _dbg(f"  match handle={h} -> alias={alias}")
                 return
 
-        # fallback por POSIÇÃO (só age se o mapa tiver `rect`, via re-mapeamento).
-        origem = self._origem_janela(window)
+        # FALLBACK 2: posição sem filtro de aba (mapas antigos, sem `aba`).
         if origem is not None:
             relx, rely = x - origem[0], y - origem[1]
             alias = self._alias_em_posicao(modulo, relx, rely)
@@ -572,6 +599,80 @@ class ActionDetector:
                 _dbg(f"  match pos rel=({relx},{rely}) -> alias={alias}")
                 return
         _dbg(f"  match: handle={h} sem alias (cache pronto={modulo in self._alias_cache})")
+
+    def _aba_do_wrapper(self, wrapper) -> list[str]:
+        """Caminho de abas (externa->interna) do elemento clicado, subindo pelos
+        ancestrais até achar TcxTabSheet(s). Como só dá para clicar no que está
+        visível, esse caminho é a aba ATIVA naquele ponto da tela."""
+        path: list[str] = []
+        cur = wrapper
+        for _ in range(40):  # teto de segurança contra ciclos
+            if cur is None:
+                break
+            try:
+                cls = cur.class_name() or ""
+            except Exception:
+                cls = ""
+            if cls == "TcxTabSheet":
+                try:
+                    titulo = (cur.window_text() or "").strip()
+                except Exception:
+                    titulo = ""
+                if titulo:
+                    path.append(titulo)
+            try:
+                cur = cur.parent()
+            except Exception:
+                break
+        path.reverse()  # da aba externa para a interna
+        return path
+
+    @staticmethod
+    def _aba_compativel(aba_json, aba_ativa: list[str]) -> bool:
+        """True se o alias (com `aba` do mapa) pode casar com a aba ativa ao vivo.
+
+        - alias sem aba (None/[]) = controle de janela -> só casa clique FORA de aba.
+        - alias com aba = casa quando seu caminho é prefixo do caminho ativo (cobre
+          campo na aba externa quando uma sub-aba está aberta)."""
+        if not aba_json:
+            return not aba_ativa
+        a = list(aba_json)
+        return a == aba_ativa[: len(a)]
+
+    def _alias_por_aba_posicao(
+        self, modulo: str, aba_ativa: list[str], relx: int, rely: int
+    ) -> Optional[str]:
+        """Alias cujo `rect` contém (relx, rely) ENTRE os da aba ativa (menor área
+        vence em empate). Determinístico: cada campo tem posição única na sua aba."""
+        melhor: Optional[str] = None
+        melhor_area: Optional[int] = None
+        for alias, (aba, rect) in self._mapa_aba_rect(modulo).items():
+            if not self._aba_compativel(aba, aba_ativa):
+                continue
+            left, top, right, bottom = rect
+            if left <= relx <= right and top <= rely <= bottom:
+                area = max(1, right - left) * max(1, bottom - top)
+                if melhor_area is None or area < melhor_area:
+                    melhor, melhor_area = alias, area
+        return melhor
+
+    def _mapa_aba_rect(self, modulo: str) -> dict:
+        """{alias: (aba|None, [l,t,r,b])} do módulo. Cache próprio."""
+        cache = self._aba_rect_cache.get(modulo)
+        if cache is not None:
+            return cache
+        cache = {}
+        try:
+            from fc import mapping_store
+            mapa = mapping_store.carregar_modulo(modulo)
+        except Exception:
+            mapa = {}
+        for alias, info_map in mapa.items():
+            rect = info_map.get("rect")
+            if isinstance(rect, (list, tuple)) and len(rect) == 4:
+                cache[alias] = (info_map.get("aba"), [int(v) for v in rect])
+        self._aba_rect_cache[modulo] = cache
+        return cache
 
     def _pedir_cache(self, modulo: str) -> None:
         """Pede ao worker para resolver o alias-map do módulo (uma vez por módulo)."""

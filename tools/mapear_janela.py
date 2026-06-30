@@ -757,6 +757,62 @@ def _aba_ativa_titulo(elementos: list[dict]) -> str | None:
     return None
 
 
+def _sheets_donas(elementos: list[dict]) -> list[tuple[str, list[int], int]]:
+    """TcxTabSheets que mandam neste passe -> [(titulo, rect_abs, area)].
+
+    Usa apenas as abas VISIVEIS (is_visible): num passe so uma aba esta ativa por
+    nivel, e e ela quem contem os campos recem-coletados. Varias TcxTabSheets do
+    mesmo PageControl compartilham o mesmo retangulo, entao a visibilidade — nao a
+    geometria — e quem desempata qual e a ativa. Sem nenhuma visivel (raro), cai
+    para a primeira TcxTabSheet, espelhando `_aba_ativa_titulo`.
+    """
+    visiveis: list[tuple[str, list[int], int]] = []
+    primeira: tuple[str, list[int], int] | None = None
+    for el in elementos:
+        if el.get("class_name") != "TcxTabSheet":
+            continue
+        r = el.get("rectangle")
+        if not r or len(r) != 4:
+            continue
+        area = max(1, r[2] - r[0]) * max(1, r[3] - r[1])
+        item = (el.get("title") or "", r, area)
+        if primeira is None:
+            primeira = item
+        if el.get("is_visible"):
+            visiveis.append(item)
+    if visiveis:
+        return visiveis
+    return [primeira] if primeira is not None else []
+
+
+def _marcar_aba(elementos: list[dict]) -> None:
+    """Anota `el['aba']` = caminho de abas (externa->interna) que contem o campo.
+
+    O dono e a(s) TcxTabSheet(s) visivel(eis) cujo retangulo contem o CENTRO do
+    elemento. Abas aninhadas (ex.: 'Livros/Mapas' -> 'Anvisa') geram um caminho com
+    varios niveis, ordenado pela area (a externa e maior, a interna e inset). Campos
+    FORA de qualquer aba (toolbar incluir/alterar, campo de consulta) ficam sem `aba`.
+    """
+    sheets = _sheets_donas(elementos)
+    if not sheets:
+        return
+    for el in elementos:
+        if el.get("class_name") in ("TcxTabSheet", "TcxPageControl"):
+            continue
+        r = el.get("rectangle")
+        if not r or len(r) != 4:
+            continue
+        cx, cy = (r[0] + r[2]) // 2, (r[1] + r[3]) // 2
+        donos = [
+            (area, titulo)
+            for (titulo, sr, area) in sheets
+            if sr[0] <= cx <= sr[2] and sr[1] <= cy <= sr[3]
+        ]
+        if donos:
+            donos.sort(reverse=True)  # area desc -> da aba externa para a interna
+            el["aba"] = [titulo for _, titulo in donos]
+
+
 def _ciclar_e_varrer_por_tab(
     janela,
     pagecontrol_ctrl,
@@ -819,6 +875,7 @@ def varrer_todas_as_abas(
     `on_progress` e segue para a proxima, preservando o que ja foi coletado.
     """
     elementos = _varrer_janela(janela, locator, incluir_ocultos, on_progress)
+    _marcar_aba(elementos)  # passe inicial: aba ativa ao abrir o modulo
 
     todos_ctrls = _arvore_completa(janela, on_progress)
     pagecontrols = [c for c in todos_ctrls if locator._safe_class(c) == "TcxPageControl"]
@@ -834,6 +891,7 @@ def varrer_todas_as_abas(
             _emitir(on_progress, "  Headers de aba nao identificados — usando Ctrl+Tab.")
             passes = _ciclar_e_varrer_por_tab(janela, pc, locator, incluir_ocultos, on_progress)
             for passe in passes[1:]:  # passes[0] ja esta em elementos
+                _marcar_aba(passe)
                 elementos, n = mesclar_elementos(elementos, passe)
                 _emitir(on_progress, f"  +{n} elemento(s) novo(s) (Ctrl+Tab).")
             continue
@@ -845,6 +903,7 @@ def varrer_todas_as_abas(
                 _emitir(on_progress, f"  Aviso: nao foi possivel selecionar aba {i + 1}/{len(headers)} — pulando.")
                 continue
             passe = _varrer_janela(janela, locator, incluir_ocultos, on_progress)
+            _marcar_aba(passe)
             elementos, n = mesclar_elementos(elementos, passe)
             titulo = _aba_ativa_titulo(passe) or f"aba {i + 1}"
             _emitir(on_progress, f"  Aba '{titulo}': +{n} elemento(s) novo(s).")

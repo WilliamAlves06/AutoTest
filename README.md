@@ -163,7 +163,7 @@ disponível como fallback em [app_legacy.py](app_legacy.py). Menu lateral:
 | Aba | Para quê |
 |-----|----------|
 | **Testes** | Lista e executa os testes em `flows/`, com resumo PASSOU/FALHOU e logs. |
-| **Recorder** | Grava cliques/digitação e **gera o teste já na DSL `fc`** (`fc.field`/`fc.button` por alias), registrando campos novos nos mappings. Toggle **"DSL fc"** (ligado por padrão; desligue para o formato legado `wait_element`). |
+| **Recorder** | Grava cliques/digitação e **gera o teste já na DSL `fc`** (`fc.field`/`fc.button` por alias), registrando campos novos nos mappings. Identifica o campo clicado por **aba + posição**. Tem **↩ Desfazer última** e **🗑 Limpar tudo**. Toggle **"DSL fc"** (ligado por padrão; desligue para o formato legado `wait_element`). |
 | **Mapear** | Mapeia a janela e abre o **Editor de aliases** (👁 realce, 🎯 captura manual, 🔄 re-mapear, 📂 editar salvo). |
 | **Modulos** | Cadastra a **inicialização** de cada módulo (exe + passos de menu) com **🎬 gravador de teclas/cliques** (clique no item → grava `@menuitem:i,j`). Grava em `modulos.json`. |
 | **Configuracoes** | `exe_path`, login/senha, pasta base dos testes. |
@@ -246,8 +246,17 @@ O fluxo de um teste atravessa estas camadas:
 Varre a árvore de controles da janela (pywinauto **backend UIA**) em duas fases
 (`descendants()` + recursão por contêineres/abas ocultas), classifica e exporta cada
 elemento como JSON com `class_name`, `control_type`, `automation_id`, `title`,
-`found_index`, `instance`, `rectangle`. Captura botões mesmo sem HWND (dedup por
+`found_index`, `instance`, `rectangle` e `rect` (posição **relativa ao canto da
+janela**, usada como localizador estável). Captura botões mesmo sem HWND (dedup por
 assinatura visual) e DevExpress/`TFagronButton`.
+
+**Telas com abas (`TcxPageControl`/`TcxTabSheet`).** No modo *todas as abas*
+(`--todas-abas` na CLI, ou o botão **Mapear** da webapp), o mapeador percorre **uma aba
+por vez** e mescla os resultados. Cada campo recebe o caminho da aba dona em
+`aba` (ex.: `["Geral"]`, ou aninhado `["Financeiro", "Meta"]`) — descoberto por
+**geometria**: a `TcxTabSheet` visível cujo retângulo contém o campo. Campos fora de
+qualquer aba (toolbar, campo de consulta) ficam **sem** `aba`. Isso é o que torna possível
+nomear e localizar corretamente campos que se repetem entre abas.
 
 > **Limitação conhecida (Delphi):** rótulos `TLabel` são desenhados no canvas (sem HWND)
 > e **não aparecem no UIA**. Por isso o editor de aliases usa o **👁 realce** (mostra o
@@ -263,11 +272,15 @@ Padroniza os localizadores sob um **alias**. O QA usa só o alias; nunca precisa
   "window": "Filiais",
   "elements": [
     { "alias": "Razao_Social", "automation_id": "854414",
-      "class_name": "TDBEdit", "control_type": "Edit", "found_index": 9, "instance": 11 },
+      "class_name": "TDBEdit", "control_type": "Edit", "found_index": 9, "instance": 11,
+      "aba": ["Geral"], "rect": [104, 243, 554, 262] },
     { "alias": "consultar", "title": "Consultar", "control_type": "Button", "found_index": 3 }
   ]
 }
 ```
+
+O campo `aba` (caminho externa→interna) e o `rect` (posição relativa à janela) são
+preenchidos automaticamente no mapeamento de telas com abas — o QA não os edita.
 
 **Convenção de aliases** (mantém os mappings legíveis e estáveis):
 
@@ -277,10 +290,15 @@ Padroniza os localizadores sob um **alias**. O QA usa só o alias; nunca precisa
 | Botões | verbo de ação, minúsculo | `consultar`, `incluir`, `salvar`, `ok_requisicao` |
 | Botão "OK" de uma janela | `ok_<janela>` (evita colisão entre telas) | `ok_embalagem`, `ok_requisicao` |
 | Grids/listas | `grid_<o quê>` | `grid_notas` |
+| Campo repetido entre abas | nome limpo na aba ativa; demais com prefixo da aba | `salvar`, `numeracao_salvar`, `ecf_salvar` |
 
 Regras: **um alias por elemento** dentro da janela; nomes **sem espaços/acentos**;
-prefira o termo que o usuário vê na tela. Aliases provisórios (com `found_index` a
-confirmar) ganham a marca `"_todo": true` no JSON até serem validados ao vivo.
+prefira o termo que o usuário vê na tela. **Aliases são únicos** — o mesmo `found_index`
+aparece em toda aba (ele reinicia por aba na varredura), então a geração de nomes
+inclui a `aba` na chave e desambigua colisões com o prefixo da aba; sem isso, nomes
+iguais em abas diferentes seriam colapsados ("último vence") ao carregar o módulo,
+deixando campos inacessíveis. Aliases provisórios ganham a marca `"_todo": true` no JSON
+até serem validados ao vivo.
 
 > A massa de dados (códigos digitados, valores esperados) fica em [`data/`](data/),
 > **não** nos arquivos de fluxo — assim o mesmo teste roda com cenários diferentes.
@@ -304,6 +322,10 @@ Resolve `fc.field("alias")` para um elemento **vivo**, tentando nesta ordem
 - `fc.open_module(nome)` é **attach-first**: anexa ao processo se já estiver aberto;
   senão executa os passos de `menu` (de `modulos.json`) — teclas, `@menuitem:i,j` ou `@click`.
 - `Field/Button/Window` fazem foco direto + ações de `core/actions.py`.
+- **Seleção automática de aba:** se o alias tiver `aba`, antes de resolver o elemento a
+  DSL traz aquela aba à frente (reusa `fc.tab(...)` / `ctx.selecionar_aba`, que cicla
+  Ctrl+Tab e lê o `TcxTabSheet` visível). É no-op para campos fora de aba e barato quando
+  a aba já está ativa — então você normalmente **não precisa** chamar `fc.tab(...)` na mão.
 
 ### Recorder — gravar e gerar teste na DSL `fc`
 A aba **Recorder** grava cliques/digitação/teclas (`core/recorder/action_detector.py`,
@@ -324,6 +346,16 @@ Adaptando a lógica do **codegen do Playwright** ao desktop:
   `✓ valor`: clique no tipo e depois **no elemento na tela** → gera
   `fc.field("alias").should_be_visible()` / `.should_have_text(...)` / `.should_have_value(...)`
   (lê o valor atual do campo no momento do clique).
+- **↩ Desfazer última / 🗑 Limpar tudo** — no painel *Ações capturadas*: remove a última
+  ação (ex.: um clique errado) ou zera o teste capturado, sem precisar reiniciar a gravação.
+
+**Como o recorder identifica o campo clicado.** O casamento do clique ao alias é
+**determinístico por aba + posição**: o recorder descobre a **aba ativa** subindo pelos
+ancestrais do elemento clicado e casa pelo `rect` (único dentro de cada aba). Isso evita
+o problema de "campo identificado como outro" em telas com abas — o `found_index`
+reinicia por aba e colidiria entre elas (dois campos com o mesmo índice viram o mesmo
+controle vivo). Cache `{HWND: alias}` e posição sem filtro de aba ficam como fallbacks
+(mapas antigos sem `aba`).
 
 > É o análogo ao *codegen* do Playwright: em vez de coordenadas, sai código legível por alias —
 > e o mapeamento cresce sozinho conforme você grava. Toggle **"DSL fc"** liga/desliga (o formato
