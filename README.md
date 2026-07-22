@@ -41,7 +41,7 @@ fc.db.query("filial_consulta", {"codigo": "10"})   # confere no banco
 ### Parte 1 — Preparar a tela (você faz **uma vez** por tela)
 
 Antes de escrever um teste para uma tela, ela precisa estar “ensinada” ao sistema.
-Tudo pela interface do app (`python app.py`):
+Tudo pela interface web (`python run_web.py` → http://127.0.0.1:8765):
 
 | Passo | Aba | O que fazer |
 |------|-----|-------------|
@@ -156,9 +156,9 @@ copy .env.example .env   # depois edite FC_LOGIN / FC_SENHA
 
 ## 🖥️ As abas do app
 
-`python app.py` abre o **AutoTest QA Studio** (interface escura, CustomTkinter — tema
-central em [ui/theme.py](ui/theme.py)). A versão antiga em Tkinter clássico continua
-disponível como fallback em [app_legacy.py](app_legacy.py). Menu lateral:
+`python run_web.py` sobe o **AutoTest QA Studio** como app web local (FastAPI +
+`webapp/static`) e abre o navegador em **http://127.0.0.1:8765** — sem build step, sem
+servidor remoto. Menu lateral:
 
 | Aba | Para quê |
 |-----|----------|
@@ -174,13 +174,18 @@ disponível como fallback em [app_legacy.py](app_legacy.py). Menu lateral:
 
 ```
 V1/
-├── app.py                     # Entrypoint do QA Studio (GUI moderna em ui/)
-├── app_legacy.py              # GUI antiga (Tkinter clássico) — fallback
-├── ui/                        # GUI moderna (CustomTkinter): theme, widgets, dashboard, shell
+├── run_web.py                 # Entrypoint do app web (FastAPI/uvicorn) → http://127.0.0.1:8765
+├── autotest.py                # atalho `from autotest import *` para escrever flows
 ├── config.json                # caminhos: exe_path, pasta base, recorder (SEM segredos)
 ├── .env                       # credenciais FC_LOGIN/FC_SENHA (gitignored — ver .env.example)
 ├── modulos.json               # inicialização dos módulos (exe + passos de menu: teclas/@menuitem)
 ├── requirements.txt
+│
+├── webapp/                    # App web (FastAPI): server + rotas por tela + SPA estática
+│   ├── server.py              #   monta o FastAPI, WebSocket único, serve webapp/static
+│   ├── routes_*.py            #   APIs: testes, recorder, mapear, modulos, config
+│   ├── mapear_engine.py       #   varredura + geração de aliases (ciente de abas)
+│   └── static/                #   SPA: index.html + css/ + js/
 │
 ├── data/                      # Massa de dados dos testes (códigos, valores esperados)
 │   ├── filiais.py  notas.py  receitas.py  produtos.py
@@ -210,11 +215,6 @@ V1/
 │   ├── logging_setup.py       #   setup_logging()
 │   ├── reporter.py            #   imprimir_resultado() (tabela PASS/FAIL)
 │   └── config.py
-│
-├── pages/                     # Telas do app
-│   ├── mapear_ui.py           #   aba Mapear + AliasEditorWindow
-│   ├── modulos_ui.py          #   aba Módulos (cadastro + gravador de teclas/cliques)
-│   └── ...
 │
 ├── tools/
 │   └── mapear_janela.py       # O mapeador (varre a árvore UIA da janela)
@@ -594,8 +594,8 @@ python flows\Filiais\consulta_filial.py
 # Pytest
 python -m pytest flows\Filiais\consulta_filial.py -v
 
-# Ou pela aba "Testes" do app
-python app.py
+# Ou pela aba "Testes" do app web
+python run_web.py    # abre http://127.0.0.1:8765
 ```
 
 Logs em `logs/` (terminal colorido + arquivo de erro + `*.jsonl`). Screenshots de falha

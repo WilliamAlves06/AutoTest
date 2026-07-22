@@ -22,21 +22,25 @@ def conectar_ou_iniciar(exe_path: str, timeout: float = 3) -> Application:
         return Application(backend="uia").start(exe_path)
 
 
+def tirar_print(destino: Path) -> bool:
+    """Captura a tela e salva em `destino`. Tenta pyautogui, cai para Win32.
+    Nunca lanca excecao — devolve True/False."""
+    try:
+        pyautogui.screenshot(str(destino))
+        return True
+    except Exception:
+        return _screenshot_win32(destino)
+
+
 def screenshot_on_failure(label: str = "erro") -> Path | None:
     """Tira screenshot e salva com timestamp. Nao propaga erro se Pillow/pyscreeze falhar."""
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     path = SCREENSHOT_DIR / f"{label}_{ts}.png"
-    try:
-        pyautogui.screenshot(str(path))
+    if tirar_print(path):
         logger.warning(f"Screenshot salvo: {path}")
         return path
-    except Exception as exc:
-        saved = _screenshot_win32(path)
-        if saved:
-            logger.warning(f"Screenshot salvo (win32): {path}")
-            return path
-        logger.warning(f"Screenshot indisponivel: {exc}")
-        return None
+    logger.warning(f"Screenshot indisponivel: {path}")
+    return None
 
 
 def _screenshot_win32(path: Path) -> bool:

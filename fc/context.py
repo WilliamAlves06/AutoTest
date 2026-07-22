@@ -359,5 +359,18 @@ class FCContext:
         _selecionar_aba(janela, list(titulos))
         return janela
 
+    def _fechar_modulo(self) -> None:
+        """Fecha a janela do módulo ativo via WM_CLOSE (equivalente ao X da janela).
+        No-op se nenhum módulo estiver aberto. Nunca propaga erro — é usado no finally."""
+        janela = self.janela_modulo
+        if janela is None:
+            return
+        try:
+            janela.close()   # pywinauto UIA → envia WM_CLOSE
+            logger.info(f"Módulo {self.modulo} fechado (WM_CLOSE).")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"Não consegui fechar o módulo {self.modulo}: {exc}")
+
     def reset(self):
+        self._fechar_modulo()
         self.__init__()

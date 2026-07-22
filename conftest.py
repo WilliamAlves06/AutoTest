@@ -83,21 +83,51 @@ def cursor(db):
     cur.close()
 
 
-# ── evidências: screenshot de falha no relatório HTML ────────────────
+# ── evidências: sessão por teste (prints manuais + screenshot de falha) ──
+@pytest.fixture(autouse=True)
+def _evidence_session(request):
+    """Abre uma pasta de evidências por teste (logs/evidencias/...) e a fecha
+    (manifest.json) com o status final ao término — usada por `fc.print()` e
+    pelo screenshot automático de falha abaixo."""
+    from core.evidence import iniciar_sessao
+
+    iniciar_sessao(request.node.name)
+    yield
+    status = getattr(request.node, "_evidence_status", "PASS")
+    from core.evidence import sessao_ativa
+    sessao = sessao_ativa()
+    if sessao:
+        sessao.finalizar(status)
+
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    """Em falha de um teste, captura screenshot e anexa ao pytest-html."""
+    """Em falha de um teste, captura screenshot (na sessão de evidências ativa,
+    se houver) e anexa ao pytest-html."""
     outcome = yield
     report = outcome.get_result()
+
+    if report.when == "call" and report.failed:
+        item._evidence_status = "FAIL"
 
     if report.when != "call" or not report.failed:
         return
 
+    caminho = None
     try:
-        from core.actions import screenshot_on_failure
-        caminho = screenshot_on_failure(f"pytest_{item.name}")
+        from core.evidence import sessao_ativa
+        sessao = sessao_ativa()
+        if sessao:
+            caminho = sessao.capturar(f"falha_{item.name}")
     except Exception:
         caminho = None
+
+    if not caminho:
+        try:
+            from core.actions import screenshot_on_failure
+            caminho = screenshot_on_failure(f"pytest_{item.name}")
+        except Exception:
+            caminho = None
 
     if not caminho:
         return
@@ -109,4 +139,4 @@ def pytest_runtest_makereport(item, call):
         extras.append(html_extras.url(Path(caminho).as_uri(), name="screenshot"))
         report.extras = extras
     except Exception:
-        pass  # pytest-html ausente — screenshot já ficou salvo em logs/screenshots
+        pass  # pytest-html ausente — screenshot já ficou salvo

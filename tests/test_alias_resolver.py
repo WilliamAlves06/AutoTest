@@ -219,6 +219,7 @@ def test_anexar_alias_casa_pelo_handle_do_cache():
 
     d = ActionDetector()
     d._alias_cache["FCFiliais"] = {12345: "Filial"}
+    d._aba_rect_cache["FCFiliais"] = {}   # sem rects -> pula aba+posição, isola o cache HWND
     evt = threading.Event()
     evt.set()
     d._alias_evt["FCFiliais"] = evt   # cache pronto -> wait retorna na hora
@@ -231,6 +232,34 @@ def test_anexar_alias_casa_pelo_handle_do_cache():
     d._anexar_alias(window, "FCFiliais.exe", info, wrapper, 50, 60)
     assert info.matched_alias == "Filial"
     assert info.handle == 12345
+
+
+def test_anexar_alias_casa_por_aba_e_posicao():
+    """Dois campos com o MESMO found_index em abas diferentes: a aba ativa (via
+    ancestrais do clicado) + posição desempata — sem cair no índice colidente."""
+    import types
+
+    from core.recorder.action_detector import ActionDetector
+    from core.recorder.locator import ElementInfo
+
+    d = ActionDetector()
+    d._aba_rect_cache["FCFiliais"] = {
+        "razao_social": (["Geral"], [100, 240, 550, 260]),
+        "v": (["Numeracao"], [100, 240, 550, 260]),   # mesma posição, outra aba
+    }
+
+    geral = types.SimpleNamespace(
+        class_name=lambda: "TcxTabSheet", window_text=lambda: "Geral", parent=lambda: None
+    )
+    wrapper = types.SimpleNamespace(
+        handle=1, class_name=lambda: "TDBEdit", window_text=lambda: "", parent=lambda: geral
+    )
+    window = types.SimpleNamespace(
+        rectangle=lambda: types.SimpleNamespace(left=0, top=0, right=1, bottom=1)
+    )
+    info = ElementInfo(class_name="TDBEdit", strategy_used="class_instance")
+    d._anexar_alias(window, "FCFiliais.exe", info, wrapper, 300, 250)
+    assert info.matched_alias == "razao_social"
 
 
 def test_anexar_rect_relativo_subtrai_a_origem_da_janela():

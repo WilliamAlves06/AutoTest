@@ -6,18 +6,25 @@ def teste() -> None:
     logger.info("Login + abrindo módulo Filiais...")
     fc.login()
     fc.open_module("FCFiliais")
-    fc.field("consulta").type("10").press("{ENTER}")
-    fc.field("alterar").click()
-    fc.field("Filiais").type("teste automatizado")
-    fc.field("RazãoSocial").type("teste automatizado razao social")
-    fc.tab("Numeração")
-    fc.tab("Livros/Mapas") 
-    fc.field("salvar").click()
+    fc.field("incluir").click()
+    fc.field("Filial").type("teste automatizado")
+    fc.field("razão social").type("teste automatizado razao social")
+    fc.tab("Livros/Mapas")
+    fc.field("farmaceutico responsavel").type("teste farmaceutico")
+    fc.field("nºCRF").type("1232")
+    fc.field("Salvar").click()
+
+def validação() -> None:
+    fc.login()
+    fc.open_module("FCFiliais")
+    fc.field("CONSULTA").type("TESTE AUTOMATIZADO")
+    fc.field("Filial").should_have_value("TESTE AUTOMATIZADO")
 
 
 def run() -> int:
     try:
         teste()
+        validação()
         logger.success("🎉 TESTE FINALIZADO COM SUCESSO (tela confere com o banco)")
         return 0
 

@@ -3,7 +3,7 @@
   "window": "Filiais",
   "elements": [
     {
-      "alias": "CUNSULTA",
+      "alias": "CONSULTA",
       "automation_id": "68044",
       "class_name": "TEdit",
       "control_type": "Edit",
@@ -781,6 +781,31 @@
         590,
         521
       ]
+    },
+    {
+      "alias": "farmaceutico responsavel",
+      "automation_id": "918458",
+      "class_name": "TDBEdit",
+      "control_type": "Edit",
+      "found_index": 8,
+      "instance": 9
+    },
+    {
+      "alias": "nºCRF",
+      "automation_id": "394652",
+      "class_name": "TDBEdit",
+      "control_type": "Edit",
+      "found_index": 7,
+      "instance": 8
+    },
+    {
+      "alias": "Salvar",
+      "automation_id": "854118",
+      "class_name": "TcxButton",
+      "title": "Salvar",
+      "control_type": "Button",
+      "found_index": 1,
+      "instance": 2
     }
   ]
 }

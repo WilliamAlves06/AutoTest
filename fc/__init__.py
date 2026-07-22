@@ -58,6 +58,15 @@ class FC:
         self._ctx.selecionar_aba(*titulos)
         return self
 
+    def print(self, label: str):
+        """Tira um print de evidência com esse nome exato.
+        Ex.: fc.print("1- inclusão do login")."""
+        from core.evidence import iniciar_sessao, sessao_ativa
+
+        sessao = sessao_ativa() or iniciar_sessao("sessao_avulsa")
+        sessao.capturar(label)
+        return self
+
     # ── acesso ao contexto (avançado) ────────────────────────────
     @property
     def context(self) -> FCContext:
